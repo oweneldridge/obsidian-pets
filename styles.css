@@ -1,8 +1,117 @@
-/*
+/* in styles.css */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.obsidian-pet {
+	display: block;
+	z-index: 1;
+	position: absolute;
+}
 
-If your plugin does not need CSS, delete this file.
+.pet-ball {
+	z-index: 2;
+}
 
-*/
+.pet-view-button-container {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 10;
+	display: flex;
+	gap: 5px; /* Adds a small space between buttons */
+}
+
+.pet-view-action-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background-color: var(--background-modifier-border);
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	color: var(--text-muted);
+	padding: 0;
+}
+
+.pet-view-action-button:hover {
+	background-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+/* Pet element positioning and sizing */
+.pet-element {
+	position: absolute;
+}
+
+.pet-collision {
+	position: absolute;
+}
+
+.pet-speech-bubble {
+	position: absolute;
+	padding: 5px 10px;
+	background: rgba(0, 0, 0, 0.8);
+	color: var(--text-normal);
+	border-radius: 5px;
+	font-size: 14px;
+	white-space: nowrap;
+	pointer-events: none;
+	z-index: 1000;
+}
+
+.pet-speech-bubble.pet-speech-hidden {
+	display: none;
+}
+
+/* Pet view container */
+.pet-view-content {
+	position: relative;
+	height: 100%;
+}
+
+/* Theme background styling */
+.pet-view-with-theme {
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+/* Foreground layer for depth */
+.pet-view-foreground-layer {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: center;
+	pointer-events: none;
+	z-index: 50;
+}
+
+/* Canvas elements for effects */
+.pet-view-background-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.pet-view-foreground-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 100;
+}
+
+/* Ball canvas */
+.pet-ball-hidden {
+	display: none;
+}
