@@ -1,17 +1,35 @@
-// src/PetView.ts
-
-import { ItemView, WorkspaceLeaf } from "obsidian";
-import { Pet } from "./pet";
-import { PetSize } from "./types";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { BasePetType } from "./pet";
+import { createPet, getRandomName } from './pets-factory';
 import { Ball } from "./ball";
+import { PetSize, PetType, PetColor } from "./types";
+import { PetSuggestModal } from "./PetSuggestModal";
+import { RemovePetModal } from "./RemovePetModal";
+import { ThemeSuggestModal } from "./ThemeSuggestModal";
+import { EffectSuggestModal } from "./EffectSuggestModal";
+import { THEME_FLOOR_MAP } from './themes';
+import { PLUGIN_ID, MAX_BALLS, MAX_PETS } from './constants';
+import { getPlugin } from './obsidian-types';
+import { Effect } from './effects/effect';
+import { SnowEffect } from './effects/snow';
+import { StarEffect } from './effects/stars';
+import { LeafEffect } from './effects/leaves';
 
 export const PET_VIEW_TYPE = "pet-view";
 
+/**
+ * Main view for displaying and managing pets in Obsidian
+ */
 export class PetView extends ItemView {
-	// We now have an array of pets
-	private pets: Pet[] = [];
-	private ball: Ball | null = null;
+	private pets: BasePetType[] = [];
+	private balls: Ball[] = [];
 	private animationFrameId: number;
+	private backgroundCanvas?: HTMLCanvasElement;
+	private foregroundCanvas?: HTMLCanvasElement;
+	private currentEffect?: Effect;
+	private throwWithMouse: boolean = true;
+	private effectsDisabled: boolean = false;
+	private isPaused: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -22,128 +40,602 @@ export class PetView extends ItemView {
 	getIcon() { return "dog"; }
 
 	private gameLoop = () => {
-		// Update every pet in the array
-		this.pets.forEach(pet => {
-			const event = pet.update(this.contentEl.offsetWidth, this.contentEl.offsetHeight, this.ball);
+		// Skip updates if paused
+		if (!this.isPaused) {
+			const viewWidth = this.contentEl.offsetWidth;
+			const viewHeight = this.contentEl.offsetHeight;
 
-			// Check if the pet caught the ball
-			if (event === 'caught_ball' && this.ball) {
-				this.ball.remove();
-				this.ball = null;
-			}
-		});
+			// Update containerWidth for all pets in case viewport was resized
+			this.pets.forEach(pet => {
+				pet.containerWidth = viewWidth;
+			});
 
-		if (this.ball) {
-			this.ball.update(this.contentEl.offsetHeight, this.contentEl.offsetWidth);
+			const plugin = getPlugin(this.app, PLUGIN_ID);
+			if (!plugin) return;
+
+			const theme = (plugin as any).settings.theme;
+			const petSize = (plugin as any).settings.petSize as PetSize;
+			const floorPercentString = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
+			const floorPercent = parseFloat(floorPercentString);
+			const floorY = viewHeight - (viewHeight * (floorPercent / 100));
+
+			// Track which balls were caught to remove them
+			const ballsToRemove: Ball[] = [];
+
+			this.pets.forEach(pet => {
+				// If there are balls, check if pet should chase them
+				if (this.balls.length > 0) {
+					for (const ball of this.balls) {
+						const event = pet.update(viewWidth, viewHeight, floorY, ball);
+						if (event === 'caught_ball') {
+							ballsToRemove.push(ball);
+							break; // Pet caught a ball, stop checking other balls for this pet
+						}
+					}
+				} else {
+					// No balls present, update pet with null to allow normal walking behavior
+					pet.update(viewWidth, viewHeight, floorY, null);
+				}
+			});
+
+			// Remove caught balls
+			ballsToRemove.forEach(ball => {
+				ball.remove();
+				this.balls = this.balls.filter(b => b !== ball);
+			});
+
+			// Update all remaining balls and remove off-screen or expired ones
+			this.balls = this.balls.filter(ball => {
+				// Check if ball has expired
+				if (ball.isExpired()) {
+					ball.remove();
+					return false;
+				}
+
+				// Check if ball is still in bounds
+				const stillInBounds = ball.update(viewHeight, viewWidth, floorY);
+				if (!stillInBounds) {
+					ball.remove();
+				}
+				return stillInBounds;
+			});
 		}
 
 		this.animationFrameId = window.requestAnimationFrame(this.gameLoop);
 	};
 
-	// This now adds a new pet to our array
-	spawnPet(type: string, color: string) {
-		const newPet = new Pet(this.app, type, color);
+
+	/**
+	 * Get all pets currently in the view
+	 */
+	getPets(): BasePetType[] {
+		return this.pets;
+	}
+
+	/**
+	 * Remove a specific pet by its ID
+	 * @param petId - Unique identifier of the pet to remove
+	 */
+	async removePetById(petId: number) {
+		const petToRemove = this.pets.find(p => p.id === petId);
+		if (petToRemove) {
+			petToRemove.el.remove();
+			this.pets = this.pets.filter(p => p.id !== petId);
+			// Save pets after removal
+			await this.savePetsToSettings();
+		}
+	}
+
+	/**
+	 * Spawn a new pet in the view
+	 * @param type - Type of pet (dog, cat, etc.)
+	 * @param color - Color of the pet
+	 * @param size - Size of the pet
+	 * @param name - Name to display for the pet
+	 * @returns true if pet was spawned, false if max limit reached
+	 */
+	async spawnPet(type: string, color: string, size: PetSize, name: string): Promise<boolean> {
+		// Check if we've reached the maximum number of pets
+		if (this.pets.length >= MAX_PETS) {
+			console.warn(`Maximum number of pets (${MAX_PETS}) reached`);
+			return false;
+		}
+
+		const plugin = getPlugin(this.app, PLUGIN_ID);
+		if (!plugin) return false;
+
+		const theme = (plugin as any).settings.theme;
+		const floor = THEME_FLOOR_MAP[theme]?.[size] ?? '0%';
+
+		// Use factory to create pet with proper typing
+		const newPet = createPet(
+			this.app,
+			type as PetType,
+			color as PetColor,
+			size,
+			name,
+			floor
+		);
+
+		if (!newPet) {
+			console.error(`Failed to create pet of type ${type}`);
+			return false;
+		}
+
 		this.pets.push(newPet);
+
+		// Set container width for boundary detection
+		newPet.containerWidth = this.contentEl.offsetWidth;
+
 		newPet.spawn(this.contentEl);
+
+		// Save pets after spawning
+		await this.savePetsToSettings();
+		return true;
 	}
 
-	// New method to clear all pets and spawn a new default one
-	resetAndSpawnPet(type: string, color: string) {
+	/**
+	 * Remove all pets and spawn a new one with default settings
+	 * @param type - Type of pet to spawn
+	 * @param color - Color of the pet
+	 * @param size - Size of the pet
+	 */
+	async resetAndSpawnPet(type: string, color: string, size: PetSize) {
 		this.clearAllPets();
-		this.spawnPet(type, color);
+		const randomName = getRandomName(type as PetType);
+		await this.spawnPet(type, color, size, randomName);
 	}
 
-	// New method to clear all pets from the view
+	/**
+	 * Remove all pets from the view
+	 */
 	clearAllPets() {
-		// Stop the animation and remove all pet elements
 		if (this.animationFrameId) {
 			window.cancelAnimationFrame(this.animationFrameId);
 		}
 		this.pets.forEach(pet => {
 			if (pet.el) pet.el.remove();
 		});
-		this.pets = []; // Clear the array
-
-		// Restart the loop
+		this.pets = [];
 		this.animationFrameId = window.requestAnimationFrame(this.gameLoop);
 	}
 
+	/**
+	 * Throw a new ball into the view for pets to chase
+	 * @returns true if ball was thrown, false if max limit reached
+	 */
+	throwBall(): boolean {
+		// Check if we've reached the maximum number of balls
+		if (this.balls.length >= MAX_BALLS) {
+			// Remove the oldest ball to make room for the new one
+			const oldestBall = this.balls.shift();
+			if (oldestBall) {
+				oldestBall.remove();
+			}
+		}
+
+		const plugin = getPlugin(this.app, PLUGIN_ID);
+		if (!plugin) return false;
+
+		const petSize = (plugin as any).settings.petSize as PetSize;
+		const newBall = new Ball(this.app, this.contentEl.offsetWidth / 2, this.contentEl.offsetHeight / 2, petSize);
+		this.balls.push(newBall);
+		newBall.spawn(this.contentEl);
+		return true;
+	}
+
+	/**
+	 * Save current pets to plugin settings
+	 */
+	async savePetsToSettings() {
+		const plugin = getPlugin(this.app, PLUGIN_ID);
+		if (!plugin) return;
+
+		const savedPets = this.pets.map(pet => ({
+			type: pet.petType,
+			color: pet.petColor,
+			size: pet.petSize,
+			name: pet.name
+		}));
+
+		(plugin as any).settings.savedPets = savedPets;
+		await (plugin as any).saveSettings();
+	}
+
+	/**
+	 * Load pets from plugin settings
+	 */
+	async loadPetsFromSettings() {
+		const plugin = getPlugin(this.app, PLUGIN_ID);
+		if (!plugin) return;
+
+		const savedPets = (plugin as any).settings.savedPets || [];
+
+		// Clear existing pets first
+		this.pets.forEach(pet => {
+			if (pet.el) pet.el.remove();
+		});
+		this.pets = [];
+
+		// Spawn each saved pet (without saving again to avoid infinite loop)
+		for (const saved of savedPets) {
+			const theme = (plugin as any).settings.theme;
+			const petSize = saved.size as PetSize;
+			const floor = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
+
+			// Use factory to create pet with proper typing
+			const newPet = createPet(
+				this.app,
+				saved.type as PetType,
+				saved.color as PetColor,
+				petSize,
+				saved.name,
+				floor
+			);
+
+			if (!newPet) {
+				console.error(`Failed to restore pet of type ${saved.type}`);
+				continue;
+			}
+
+			this.pets.push(newPet);
+
+			// Set container width for boundary detection
+			newPet.containerWidth = this.contentEl.offsetWidth;
+
+			newPet.spawn(this.contentEl);
+		}
+	}
+
+	/**
+	 * Apply a theme to the view background
+	 * @param theme - Theme name (none, castle, forest, beach, winter)
+	 */
 	applyTheme(theme: string) {
-		if (theme === 'none') {
-			this.contentEl.style.backgroundImage = 'none';
+		this.contentEl.style.backgroundImage = '';
+		if (theme !== 'none') {
+			const isDarkMode = document.body.classList.contains('theme-dark');
+			const themeKind = isDarkMode ? 'dark' : 'light';
+
+			const viewWidth = this.contentEl.offsetWidth;
+			let size: PetSize;
+			if (viewWidth < 300) { size = PetSize.nano; }
+			else if (viewWidth < 500) { size = PetSize.small; }
+			else if (viewWidth < 800) { size = PetSize.medium; }
+			else { size = PetSize.large; }
+
+			const backgroundUrl = this.app.vault.adapter.getResourcePath(
+				`${(this.app as any).plugins.plugins['vault-pets'].app.vault.configDir}/plugins/vault-pets/media/backgrounds/${theme}/background-${themeKind}-${size}.png`
+			);
+
+			this.contentEl.style.backgroundImage = `url('${backgroundUrl}')`;
+			this.contentEl.style.backgroundSize = 'cover';
+			this.contentEl.style.backgroundRepeat = 'no-repeat';
+			this.contentEl.style.backgroundPosition = 'center';
+		}
+
+		// Update the floor position for all existing pets without recreating them
+		this.pets.forEach(pet => {
+			const newFloor = THEME_FLOOR_MAP[theme]?.[pet.petSize as PetSize] ?? '0%';
+			pet.setFloor(newFloor);
+		});
+	}
+
+	/**
+	 * Initialize canvas elements for effects
+	 */
+	private initializeCanvases() {
+		// Background canvas (for stars)
+		this.backgroundCanvas = this.contentEl.createEl('canvas', {
+			cls: 'pet-view-background-canvas'
+		});
+		this.backgroundCanvas.style.position = 'absolute';
+		this.backgroundCanvas.style.top = '0';
+		this.backgroundCanvas.style.left = '0';
+		this.backgroundCanvas.style.width = '100%';
+		this.backgroundCanvas.style.height = '100%';
+		this.backgroundCanvas.style.pointerEvents = 'none';
+		this.backgroundCanvas.style.zIndex = '0';
+		this.backgroundCanvas.width = this.contentEl.offsetWidth;
+		this.backgroundCanvas.height = this.contentEl.offsetHeight;
+
+		// Foreground canvas (for snow and leaves)
+		this.foregroundCanvas = this.contentEl.createEl('canvas', {
+			cls: 'pet-view-foreground-canvas'
+		});
+		this.foregroundCanvas.style.position = 'absolute';
+		this.foregroundCanvas.style.top = '0';
+		this.foregroundCanvas.style.left = '0';
+		this.foregroundCanvas.style.width = '100%';
+		this.foregroundCanvas.style.height = '100%';
+		this.foregroundCanvas.style.pointerEvents = 'none';
+		this.foregroundCanvas.style.zIndex = '100';
+		this.foregroundCanvas.width = this.contentEl.offsetWidth;
+		this.foregroundCanvas.height = this.contentEl.offsetHeight;
+	}
+
+	/**
+	 * Set the visual effect (snow, stars, leaves, or none)
+	 */
+	setEffect(effectType: string) {
+		// Disable current effect if any
+		if (this.currentEffect) {
+			this.currentEffect.disable();
+			this.currentEffect = undefined;
+		}
+
+		// Clear canvases when switching to 'none' or if canvases don't exist
+		if (effectType === 'none') {
+			if (this.foregroundCanvas) {
+				const ctx = this.foregroundCanvas.getContext('2d');
+				if (ctx) {
+					ctx.clearRect(0, 0, this.foregroundCanvas.width, this.foregroundCanvas.height);
+				}
+			}
+			if (this.backgroundCanvas) {
+				const ctx = this.backgroundCanvas.getContext('2d');
+				if (ctx) {
+					ctx.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+				}
+			}
 			return;
 		}
 
-		const assetPath = (asset: string) => {
-			const pluginId = 'obsidian-pets';
-			const plugin = this.app.plugins.getPlugin(pluginId);
-			if (!plugin) return '';
-			return this.app.vault.adapter.getResourcePath(
-				`${plugin.app.vault.configDir}/plugins/${pluginId}/media/${asset}`
+		// Don't enable effects if they are disabled
+		if (this.effectsDisabled) {
+			return;
+		}
+
+		if (!this.foregroundCanvas || !this.backgroundCanvas) {
+			return;
+		}
+
+		const plugin = getPlugin(this.app, PLUGIN_ID);
+		if (!plugin) return;
+
+		const petSize = (plugin as any).settings.petSize as PetSize;
+		const theme = (plugin as any).settings.theme;
+		const floorPercentString = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
+		const floorPercent = parseFloat(floorPercentString);
+		const viewHeight = this.contentEl.offsetHeight;
+		const floorPixels = (viewHeight * (floorPercent / 100));
+
+		const isDarkTheme = document.body.classList.contains('theme-dark');
+
+		// Create the appropriate effect
+		let effect: Effect | undefined;
+		switch (effectType) {
+			case 'snow':
+				effect = new SnowEffect();
+				break;
+			case 'stars':
+				effect = new StarEffect();
+				break;
+			case 'leaves':
+				effect = new LeafEffect();
+				break;
+		}
+
+		if (effect) {
+			effect.init(
+				this.foregroundCanvas,
+				this.backgroundCanvas,
+				petSize,
+				floorPixels,
+				isDarkTheme
 			);
+			effect.enable();
+			this.currentEffect = effect;
+		}
+	}
+
+	/**
+	 * Enable or disable mouse-based ball throwing
+	 * @param enabled - Whether to enable mouse throwing
+	 */
+	setThrowWithMouse(enabled: boolean) {
+		this.throwWithMouse = enabled;
+
+		if (enabled) {
+			this.enableMouseThrow();
+		} else {
+			this.disableMouseThrow();
+		}
+	}
+
+	/**
+	 * Enable mouse-based ball throwing with click-and-drag
+	 */
+	private enableMouseThrow() {
+		let startX = 0;
+		let startY = 0;
+		let isDragging = false;
+
+		const handleMouseDown = (e: MouseEvent) => {
+			if (this.balls.length >= MAX_BALLS) {
+				// Remove oldest ball to make room
+				const oldestBall = this.balls.shift();
+				if (oldestBall) {
+					oldestBall.remove();
+				}
+			}
+
+			const rect = this.contentEl.getBoundingClientRect();
+			startX = e.clientX - rect.left;
+			startY = e.clientY - rect.top;
+			isDragging = true;
 		};
 
-		// 1. Determine the panel size
-		const width = this.contentEl.offsetWidth;
-		let petSize: PetSize;
-		if (width < 300) {
-			petSize = PetSize.nano;
-		} else if (width < 500) {
-			petSize = PetSize.small;
-		} else if (width < 800) {
-			petSize = PetSize.medium;
-		} else {
-			petSize = PetSize.large;
-		}
+		const handleMouseUp = (e: MouseEvent) => {
+			if (!isDragging) return;
+			isDragging = false;
 
-		// 2. Determine the color theme
-		const isDarkMode = document.body.classList.contains('theme-dark');
-		const themeKind = isDarkMode ? 'dark' : 'light';
+			const rect = this.contentEl.getBoundingClientRect();
+			const endX = e.clientX - rect.left;
+			const endY = e.clientY - rect.top;
 
-		// 3. Construct the filename based on the original project's logic
-		// This handles all cases, including "beach", "castle", etc.
-		const backgroundUrl = assetPath(`backgrounds/${theme}/background-${themeKind}-${petSize}.png`);
+			// Calculate velocity from drag distance (reduced multiplier for smoother control)
+			const velocityX = (endX - startX) * 0.15;
+			const velocityY = (endY - startY) * 0.15;
 
-		// 4. Set the background image
-		// We removed the fetch() wrapper to prevent the unhandled promise rejection error.
-		// If a file is not found, the background will simply be empty, which is graceful.
-		this.contentEl.style.backgroundImage = `url('${backgroundUrl}')`;
-		this.contentEl.style.backgroundSize = 'cover';
-		this.contentEl.style.backgroundRepeat = 'no-repeat';
-		this.contentEl.style.backgroundPosition = 'center';
+			const plugin = getPlugin(this.app, PLUGIN_ID);
+			if (!plugin) return;
+
+			const petSize = (plugin as any).settings.petSize as PetSize;
+			const newBall = new Ball(this.app, startX, startY, petSize, velocityX, velocityY);
+			this.balls.push(newBall);
+			newBall.spawn(this.contentEl);
+		};
+
+		this.contentEl.addEventListener('mousedown', handleMouseDown);
+		this.contentEl.addEventListener('mouseup', handleMouseUp);
+
+		// Store handlers so we can remove them later
+		(this as any)._mouseDownHandler = handleMouseDown;
+		(this as any)._mouseUpHandler = handleMouseUp;
 	}
 
-	throwBall() {
-		if (this.ball) {
-			this.ball.remove();
+	/**
+	 * Disable mouse-based ball throwing
+	 */
+	private disableMouseThrow() {
+		if ((this as any)._mouseDownHandler) {
+			this.contentEl.removeEventListener('mousedown', (this as any)._mouseDownHandler);
+			this.contentEl.removeEventListener('mouseup', (this as any)._mouseUpHandler);
+			delete (this as any)._mouseDownHandler;
+			delete (this as any)._mouseUpHandler;
 		}
-		// Start the ball in the middle of the view
-		this.ball = new Ball(this.app, this.contentEl.offsetWidth / 2, this.contentEl.offsetHeight / 2);
-		this.ball.spawn(this.contentEl);
 	}
 
+	/**
+	 * Enable or disable visual effects
+	 * @param disabled - Whether to disable effects
+	 */
+	setDisableEffects(disabled: boolean) {
+		this.effectsDisabled = disabled;
+
+		if (disabled && this.currentEffect) {
+			// Disable and clear current effect
+			this.currentEffect.disable();
+			this.currentEffect = undefined;
+
+			// Clear canvases
+			if (this.foregroundCanvas) {
+				const ctx = this.foregroundCanvas.getContext('2d');
+				if (ctx) {
+					ctx.clearRect(0, 0, this.foregroundCanvas.width, this.foregroundCanvas.height);
+				}
+			}
+			if (this.backgroundCanvas) {
+				const ctx = this.backgroundCanvas.getContext('2d');
+				if (ctx) {
+					ctx.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Make all pets show their speech bubbles (roll call)
+	 */
+	rollCall() {
+		this.pets.forEach((pet, index) => {
+			// Stagger the speech bubbles slightly so they don't all appear at once
+			setTimeout(() => {
+				pet.showSpeechBubble(`${pet.name}!`, 3000);
+			}, index * 500);
+		});
+	}
+
+	/**
+	 * Toggle animation pause state
+	 */
+	togglePause() {
+		this.isPaused = !this.isPaused;
+	}
 
 	async onOpen() {
+		this.addAction('circle', 'Throw ball', () => this.throwBall());
+		this.addAction('plus', 'Add a new pet', () => new PetSuggestModal(this.app, this).open());
+		this.addAction('minus', 'Remove a pet', () => new RemovePetModal(this.app, this).open());
+		this.addAction('palette', 'Change theme', () => new ThemeSuggestModal(this.app, this).open());
+		this.addAction('sparkles', 'Change effect', () => new EffectSuggestModal(this.app, this).open());
+
 		this.contentEl.empty();
 		this.contentEl.style.position = 'relative';
 		this.contentEl.style.height = '100%';
 
-		const plugin = (this.app as any).plugins.plugins['obsidian-pets'];
+		// Initialize canvas elements for effects
+		this.initializeCanvases();
+
+		const buttonContainer = this.contentEl.createDiv({ cls: 'pet-view-button-container' });
+
+		const removeButton = buttonContainer.createEl('button', { cls: 'pet-view-action-button' });
+		removeButton.setAttribute('aria-label', 'Remove a pet');
+		setIcon(removeButton, 'minus');
+		removeButton.addEventListener('click', () => new RemovePetModal(this.app, this).open());
+
+		const throwBallButton = buttonContainer.createEl('button', { cls: 'pet-view-action-button' });
+		throwBallButton.setAttribute('aria-label', 'Throw ball');
+		setIcon(throwBallButton, 'circle');
+		throwBallButton.addEventListener('click', () => this.throwBall());
+
+		const addButton = buttonContainer.createEl('button', { cls: 'pet-view-action-button' });
+		addButton.setAttribute('aria-label', 'Add a new pet');
+		setIcon(addButton, 'plus');
+		addButton.addEventListener('click', () => new PetSuggestModal(this.app, this).open());
+
+		const themeButton = buttonContainer.createEl('button', { cls: 'pet-view-action-button' });
+		themeButton.setAttribute('aria-label', 'Change theme');
+		setIcon(themeButton, 'palette');
+		themeButton.addEventListener('click', () => new ThemeSuggestModal(this.app, this).open());
+
+		const effectButton = buttonContainer.createEl('button', { cls: 'pet-view-action-button' });
+		effectButton.setAttribute('aria-label', 'Change effect');
+		setIcon(effectButton, 'sparkles');
+		effectButton.addEventListener('click', () => new EffectSuggestModal(this.app, this).open());
+
+		const plugin = (this.app as any).plugins.plugins['vault-pets'];
 		if (plugin) {
 			this.applyTheme(plugin.settings.theme);
-			this.spawnPet(plugin.settings.petType, plugin.settings.petColor);
+
+			// Initialize throwWithMouse and effectsDisabled from settings
+			this.setThrowWithMouse(plugin.settings.throwBallWithMouse ?? true);
+			this.effectsDisabled = plugin.settings.disableEffects ?? false;
+
+			// Load saved pets from settings
+			await this.loadPetsFromSettings();
+
+			// If no pets were saved, spawn a default pet
+			if (this.pets.length === 0) {
+				const randomName = getRandomName(plugin.settings.petType as PetType);
+				await this.spawnPet(plugin.settings.petType, plugin.settings.petColor, plugin.settings.petSize as PetSize, randomName);
+			}
+
+			// Initialize effect from settings (only if effects are not disabled)
+			if (!this.effectsDisabled && plugin.settings.effect && plugin.settings.effect !== 'none') {
+				this.setEffect(plugin.settings.effect);
+			}
 		}
 
 		this.animationFrameId = window.requestAnimationFrame(this.gameLoop);
 	}
 
 	async onClose() {
+		// Save pets before closing
+		await this.savePetsToSettings();
+
+		// Disable effect
+		if (this.currentEffect) {
+			this.currentEffect.disable();
+			this.currentEffect = undefined;
+		}
+
 		if (this.animationFrameId) {
 			window.cancelAnimationFrame(this.animationFrameId);
 		}
-		this.clearAllPets();
-		if (this.ball) {
-			this.ball.remove();
-		}
+		// Clean up all balls
+		this.balls.forEach(ball => ball.remove());
+		this.balls = [];
 	}
 }

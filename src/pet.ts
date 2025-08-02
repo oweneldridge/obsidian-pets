@@ -1,137 +1,558 @@
-// src/pet.ts
-
 import { App } from "obsidian";
-import { PetState } from "./states";
+import {
+	IPetType,
+	IState,
+	States,
+	BallState,
+	HorizontalDirection,
+	FrameResult,
+	resolveState,
+	PetState,
+	isStateAboveGround
+} from "./states";
+import { ISequenceTree } from "./sequences";
 import { Ball } from "./ball";
+import { PetSize, PetColor, PetType } from "./types";
+import { PLUGIN_ID } from "./constants";
 
-export class Pet {
-	el: HTMLImageElement; // The element is now specifically an Image
+/**
+ * State persistence structure for saving/loading pet state
+ */
+export interface PetInstanceState {
+	currentStateEnum: States;
+	petName: string;
+	petType: PetType;
+	petColor: PetColor;
+	petFriend: string | undefined;
+	petLeft: number;
+	petBottom: number;
+}
+
+/**
+ * Abstract base class for all pet types, implementing the IPetType interface.
+ * Each specific pet type (Dog, Cat, etc.) should extend this class and provide
+ * its own sequence tree, label, and sprite mappings.
+ */
+export abstract class BasePetType implements IPetType {
+	// Abstract properties that each pet type must define
+	abstract sequence: ISequenceTree;
+	abstract readonly label: string;
+	abstract readonly emoji: string;
+
+	// Core pet properties
+	id: number;
+	el: HTMLImageElement;
+	collision: HTMLDivElement;
+	speech: HTMLDivElement;
 	app: App;
-	petType: string;
-	petColor: string;
+	petType: PetType;
+	petColor: PetColor;
+	petSize: PetSize;
+	name: string;
+	containerWidth: number = 400; // Default container width, will be updated
 
-	currentState: PetState = PetState.idle;
-	private speed = 2;
-	private direction = 1;
-	position: { x: number, y: number };
+	// State machine
+	currentState: IState;
+	currentStateEnum: States;
 
-	private stateChangeTimer = 0;
+	// Friend system
+	private _friend: IPetType | undefined;
 
-	constructor(app: App, petType = 'dog', petColor = 'brown') {
+	// Position and movement
+	private _left: number = 0;
+	private _bottom: number = 0;
+	private _floor: number = 0;
+	private _floorString: string = '0%'; // CSS floor position (e.g., "10%")
+	private _speed: number;
+	private sizeInPixels: number;
+
+	constructor(
+		app: App,
+		petType: PetType,
+		petColor: PetColor,
+		petSize: PetSize,
+		name: string,
+		floorString: string = '0%',
+		left: number = 100
+	) {
+		this.id = Date.now() + Math.random();
 		this.app = app;
 		this.petType = petType;
 		this.petColor = petColor;
-		this.position = { x: 50, y: 0 };
+		this.petSize = petSize;
+		this.name = name;
+		this._floorString = floorString;
+		this._left = left;
+		this._bottom = 0; // Will be calculated from container height
+		this._floor = 0; // Will be calculated from container height
 
-		// Create an <img> element instead of a <div>
+		// Set speed based on size
+		switch (this.petSize) {
+			case PetSize.nano: this._speed = 1.0; break;
+			case PetSize.small: this._speed = 1.5; break;
+			case PetSize.large: this._speed = 2.5; break;
+			case PetSize.medium: default: this._speed = 2.0; break;
+		}
+
+		// Create sprite element
 		this.el = document.createElement('img');
 		this.el.addClass('obsidian-pet');
+
+		// Create collision div (for friend collision detection)
+		this.collision = document.createElement('div');
+		this.collision.style.position = 'absolute';
+
+		// Create speech bubble div
+		this.speech = document.createElement('div');
+		this.speech.style.position = 'absolute';
+		this.speech.style.display = 'none';
+		this.speech.addClass('pet-speech-bubble');
+
+		// Initialize state machine - will be set in initState() after subclass construction
+		this.currentStateEnum = States.sitIdle;
+		this.currentState = resolveState(States.sitIdle, this);
 	}
 
-	private getAssetPath(asset: string): string {
-		const pluginId = 'obsidian-pets';
-		const plugin = this.app.plugins.getPlugin(pluginId);
-		if (!plugin) return '';
-		return this.app.vault.adapter.getResourcePath(
-			`${plugin.app.vault.configDir}/plugins/${pluginId}/media/${asset}`
-		);
+	/**
+	 * Initialize the state machine with the pet's sequence tree.
+	 * Must be called by subclass constructor after super().
+	 */
+	protected initState(): void {
+		this.currentStateEnum = this.sequence.startingState;
+		this.currentState = resolveState(this.currentStateEnum, this);
 	}
 
-	private updateSprite() {
-		let stateSprite = "idle";
+	// IPetType interface implementation
 
-		switch(this.currentState) {
-			case PetState.walk: stateSprite = "walk"; break;
-			case PetState.run: case PetState.chase: stateSprite = "run"; break;
+	/**
+	 * Main state machine update - called each animation frame
+	 */
+	nextFrame(): void {
+		// Update sprite facing direction
+		if (this.currentState.horizontalDirection === HorizontalDirection.left) {
+			this.faceLeft();
+		} else if (this.currentState.horizontalDirection === HorizontalDirection.right) {
+			this.faceRight();
 		}
 
-		if (this.currentState === PetState.idle && this.el.hasClass('with-ball')) {
-			stateSprite = "with_ball";
+		// Set animation sprite for current state
+		this.setAnimation(this.currentState.spriteLabel);
+
+		// Advance state machine
+		const frameResult = this.currentState.nextFrame();
+		if (frameResult === FrameResult.stateComplete) {
+			// State completed, choose next state from sequence tree
+			const nextState = this.chooseNextState(this.currentStateEnum);
+			this.currentState = resolveState(nextState, this);
+			this.currentStateEnum = nextState;
+		}
+	}
+
+	/**
+	 * Legacy update method for backward compatibility with old animation loop.
+	 * New code should call nextFrame() instead.
+	 * @deprecated Use nextFrame() instead
+	 */
+	update(viewWidth: number, viewHeight: number, floorY: number, ball: any | null): string | void {
+		// Handle ball chasing logic BEFORE updating state machine
+		if (ball && this.canChase) {
+			const ballIsOnFloor = ball.position.y >= floorY - 30;
+			const distanceToBall = Math.abs((this.left + this.width / 2) - ball.position.x);
+
+			// If ball is on floor and close enough, catch it
+			if (ballIsOnFloor && distanceToBall < 40) {
+				// Switch to idle with ball state
+				if (this.currentStateEnum !== States.idleWithBall) {
+					this.currentStateEnum = States.idleWithBall;
+					this.currentState = resolveState(States.idleWithBall, this);
+				}
+				return 'caught_ball';
+			}
+
+			// If ball is on floor but not caught, chase it
+			if (ballIsOnFloor && this.currentStateEnum !== States.chase && this.currentStateEnum !== States.idleWithBall) {
+				this.currentStateEnum = States.chase;
+				this.currentState = resolveState(States.chase, this);
+			}
+
+			// If in chase state, move toward ball
+			if (this.currentStateEnum === States.chase) {
+				const speed = this._speed * 1.5; // Chase is faster than walking
+				if (ball.position.x < this.left + this.width / 2) {
+					// Ball is to the left
+					this.positionLeft(Math.max(0, this.left - speed));
+					this.faceLeft();
+				} else {
+					// Ball is to the right
+					this.positionLeft(Math.min(viewWidth - this.width, this.left + speed));
+					this.faceRight();
+				}
+			}
+		} else if (this.currentStateEnum === States.chase || this.currentStateEnum === States.idleWithBall) {
+			// No ball present but in chase/ball state, return to idle
+			this.currentStateEnum = States.sitIdle;
+			this.currentState = resolveState(States.sitIdle, this);
 		}
 
-		const assetPath = this.getAssetPath(`${this.petType}/${this.petColor}_${stateSprite}_8fps.gif`);
+		// Call the state machine for normal behavior (when not chasing)
+		if (this.currentStateEnum !== States.chase) {
+			this.nextFrame();
+		} else {
+			// In chase state, just update animation
+			this.setAnimation('run');
+		}
+	}
 
-		// --- THE ANIMATION FIX ---
-		// Get the base URLs by removing the cache-busting query string
+	/**
+	 * Choose the next state from the pet's sequence tree
+	 */
+	private chooseNextState(fromState: States): States {
+		let possibleNextStates: States[] | undefined;
+
+		// Find possible next states in sequence tree
+		for (let i = 0; i < this.sequence.sequenceStates.length; i++) {
+			if (this.sequence.sequenceStates[i].state === fromState) {
+				possibleNextStates = this.sequence.sequenceStates[i].possibleNextStates;
+				break;
+			}
+		}
+
+		if (!possibleNextStates || possibleNextStates.length === 0) {
+			// Fallback to starting state if no transitions defined
+			return this.sequence.startingState;
+		}
+
+		// Randomly select one of the possible next states
+		const idx = Math.floor(Math.random() * possibleNextStates.length);
+		return possibleNextStates[idx];
+	}
+
+	/**
+	 * Set the animation sprite for the current state
+	 */
+	private setAnimation(spriteLabel: string): void {
+		// Replace spaces with underscores in color name for file paths
+		const colorPath = this.petColor.replace(/ /g, '_');
+		const assetPath = this.getAssetPath(`${this.petType}/${colorPath}_${spriteLabel}_8fps.gif`);
 		const currentSrcBase = this.el.src.split('?')[0];
 		const newSrcBase = assetPath.split('?')[0];
 
-		// Only update the image source if the base GIF file has actually changed.
-		// This prevents the animation from being reset on every frame.
 		if (currentSrcBase !== newSrcBase) {
 			this.el.src = assetPath;
 		}
-		// --- END OF FIX ---
-
-		this.el.style.transform = this.direction === -1 ? 'scaleX(-1)' : 'scaleX(1)';
 	}
 
-	// in src/pet.ts
+	/**
+	 * Face the pet left (flip sprite horizontally)
+	 */
+	private faceLeft(): void {
+		this.el.style.transform = 'scaleX(-1)';
+	}
 
-	update(viewWidth: number, viewHeight: number, ball: Ball | null): string | void {
-		// 1. AI: Decide if it's time to chase the ball
-		if (this.currentState !== PetState.chase && ball) {
-			const ballIsOnFloor = ball.position.y >= viewHeight - 25;
-			if (ballIsOnFloor && Math.random() < 0.8) {
-				this.currentState = PetState.chase;
-			}
-		} else if (this.currentState === PetState.chase && ball) {
-			// Logic for actively chasing the ball
-			const speed = 4;
-			const targetX = ball.position.x;
-			const xDistance = Math.abs(this.position.x - targetX);
+	/**
+	 * Face the pet right (normal sprite orientation)
+	 */
+	private faceRight(): void {
+		this.el.style.transform = 'scaleX(1)';
+	}
 
-			// --- THE AI FIX: "Dead Zone" ---
-			// If the pet is already close to being under the ball, stop moving and wait.
-			if (xDistance > 10) {
-				// Only move if not in the "dead zone"
-				if (this.position.x < targetX) {
-					this.direction = 1; this.position.x += speed;
-				} else {
-					this.direction = -1; this.position.x -= speed;
-				}
-			}
-			// --- END OF FIX ---
+	/**
+	 * Get the full path to a media asset
+	 */
+	private getAssetPath(asset: string): string {
+		const plugin = (this.app as any).plugins.getPlugin(PLUGIN_ID);
+		if (!plugin) return '';
+		return this.app.vault.adapter.getResourcePath(
+			`${plugin.app.vault.configDir}/plugins/${PLUGIN_ID}/media/${asset}`
+		);
+	}
 
-			// Improved collision detection
-			const ballIsOnFloor = ball.position.y >= viewHeight - 25;
-			const canCatchOnFloor = ballIsOnFloor && xDistance < 25;
+	// Swipe ability
+	abstract get canSwipe(): boolean;
 
-			// Allow catching the ball if it lands near the pet's head
-			const canCatchInAir = xDistance < 35 && Math.abs(ball.position.y - (viewHeight - 40)) < 20;
+	// State holding for temporary states like swipe
+	private holdState?: IState;
+	private holdStateEnum?: States;
 
-			if (canCatchOnFloor || canCatchInAir) {
-				this.currentState = PetState.idle;
-				this.el.addClass('with-ball');
-				return 'caught_ball';
-			}
-		} else {
-			// Normal Idle/Walk Behavior
-			this.stateChangeTimer++;
-			if (this.stateChangeTimer > 180) {
-				if (this.el.hasClass('with-ball')) this.el.removeClass('with-ball');
-				this.currentState = this.currentState === PetState.idle ? PetState.walk : PetState.idle;
-				this.stateChangeTimer = 0;
-			}
-
-			if (this.currentState === PetState.walk) {
-				this.position.x += this.speed * this.direction;
-				if (this.position.x > viewWidth - 50 || this.position.x < 0) this.direction *= -1;
-			}
+	swipe(): void {
+		// Don't swipe if already swiping
+		if (this.currentStateEnum === States.swipe) {
+			return;
 		}
-
-		this.updateSprite();
-		this.el.style.left = `${this.position.x}px`;
+		// Save current state to return to after swipe
+		this.holdState = this.currentState;
+		this.holdStateEnum = this.currentStateEnum;
+		// Switch to swipe state
+		this.currentStateEnum = States.swipe;
+		this.currentState = resolveState(States.swipe, this);
+		// Show wave emoji
+		this.showSpeechBubble('👋');
 	}
 
-	spawn(container: HTMLElement) {
-		this.el.style.position = 'absolute';
-		this.el.style.bottom = '0px';
-		this.el.style.width = '50px';
-		this.el.style.height = '50px';
+	// Chase ability
+	abstract get canChase(): boolean;
 
-		this.position.x = container.offsetWidth / 2;
-		this.updateSprite();
+	chase(ballState: BallState, canvas: HTMLCanvasElement): void {
+		if (this.canChase && ballState.paused) {
+			this.currentState = resolveState(States.chase, this);
+			this.currentStateEnum = States.chase;
+		}
+	}
+
+	// Speed properties
+	get speed(): number {
+		return this._speed;
+	}
+
+	abstract get climbSpeed(): number;
+	abstract get climbHeight(): number;
+	abstract get fallSpeed(): number;
+
+	get isMoving(): boolean {
+		return (
+			this.currentStateEnum === States.walkLeft ||
+			this.currentStateEnum === States.walkRight ||
+			this.currentStateEnum === States.runLeft ||
+			this.currentStateEnum === States.runRight ||
+			this.currentStateEnum === States.chase ||
+			this.currentStateEnum === States.chaseFriend
+		);
+	}
+
+	abstract get hello(): string;
+
+	// Position properties
+	get bottom(): number {
+		return this._bottom;
+	}
+
+	get left(): number {
+		return this._left;
+	}
+
+	positionBottom(bottom: number): void {
+		this._bottom = bottom;
+		this.el.style.bottom = `${bottom}px`;
+		this.collision.style.bottom = `${bottom}px`;
+		this.speech.style.bottom = `${bottom + this.sizeInPixels}px`;
+	}
+
+	positionLeft(left: number): void {
+		this._left = left;
+		this.el.style.left = `${left}px`;
+		this.collision.style.left = `${left}px`;
+		this.speech.style.left = `${left}px`;
+	}
+
+	get width(): number {
+		return this.sizeInPixels;
+	}
+
+	get floor(): number {
+		return this._floor;
+	}
+
+	// Friend system
+	get hasFriend(): boolean {
+		return this._friend !== undefined;
+	}
+
+	get friend(): IPetType | undefined {
+		return this._friend;
+	}
+
+	makeFriendsWith(friend: IPetType): boolean {
+		this._friend = friend;
+		return true;
+	}
+
+	get isPlaying(): boolean {
+		return (
+			this.currentStateEnum === States.chaseFriend ||
+			this.hasFriend
+		);
+	}
+
+	// Speech bubble
+	showSpeechBubble(message: string, duration: number = 3000): void {
+		this.speech.innerHTML = message;
+		this.speech.style.display = 'block';
+		setTimeout(() => {
+			this.hideSpeechBubble();
+		}, duration);
+	}
+
+	private hideSpeechBubble(): void {
+		this.speech.style.display = 'none';
+	}
+
+	// State persistence
+	getState(): PetInstanceState {
+		return {
+			currentStateEnum: this.currentStateEnum,
+			petName: this.name,
+			petType: this.petType,
+			petColor: this.petColor,
+			petFriend: this._friend?.name,
+			petLeft: this._left,
+			petBottom: this._bottom,
+		};
+	}
+
+	recoverState(state: PetInstanceState): void {
+		this.currentStateEnum = state.currentStateEnum;
+		this.currentState = resolveState(this.currentStateEnum, this);
+		this.name = state.petName;
+		this.petType = state.petType;
+		this.petColor = state.petColor;
+		this.positionLeft(state.petLeft);
+		this.positionBottom(state.petBottom);
+	}
+
+	recoverFriend(friend: IPetType): void {
+		this._friend = friend;
+	}
+
+	// DOM manipulation
+	remove(): void {
+		this.el.remove();
+		this.collision.remove();
+		this.speech.remove();
+	}
+
+	/**
+	 * Spawn the pet in the DOM container
+	 */
+	spawn(container: HTMLElement): void {
+		const size = {
+			[PetSize.nano]: 30,
+			[PetSize.small]: 40,
+			[PetSize.medium]: 50,
+			[PetSize.large]: 65,
+		}[this.petSize];
+
+		this.sizeInPixels = size;
+
+		// Calculate floor position from floor percentage
+		// Floor percentage represents distance from bottom of container
+		const floorPercent = parseFloat(this._floorString);
+		const containerHeight = container.offsetHeight;
+		this._floor = containerHeight * (floorPercent / 100);
+		this._bottom = this._floor;
+
+		// Setup sprite element
+		this.el.style.position = 'absolute';
+		this.el.style.width = `${size}px`;
+		this.el.style.height = `${size}px`;
+		this.el.setAttribute('title', this.name);
+
+		// Setup collision element (same size as sprite)
+		this.collision.style.width = `${size}px`;
+		this.collision.style.height = `${size}px`;
+
+		// Add mouseover event for swipe interaction
+		this.collision.addEventListener('mouseover', () => {
+			if (this.canSwipe) {
+				this.swipe();
+			}
+		});
+
+		// Setup speech bubble (positioned above pet)
+		this.speech.style.padding = '5px 10px';
+		this.speech.style.background = 'rgba(0, 0, 0, 0.8)';
+		this.speech.style.color = 'white';
+		this.speech.style.borderRadius = '5px';
+		this.speech.style.fontSize = '12px';
+		this.speech.style.whiteSpace = 'nowrap';
+		this.speech.style.pointerEvents = 'none';
+
+		// Position pet
+		this.positionLeft(this._left);
+		this.positionBottom(this._bottom);
+
+		// Add to DOM
 		container.appendChild(this.el);
+		container.appendChild(this.collision);
+		container.appendChild(this.speech);
+	}
+
+	/**
+	 * Update the floor position for the pet
+	 * @param newFloorString - New floor position as CSS value (e.g., "10%")
+	 */
+	setFloor(newFloorString: string): void {
+		this._floorString = newFloorString;
+		// Floor will be recalculated on next spawn or position update
+		this.el.style.bottom = newFloorString;
+	}
+}
+
+/**
+ * Concrete Pet class for backward compatibility with existing code.
+ * Provides default implementations of abstract properties.
+ * For new code, create specific pet classes extending BasePetType.
+ */
+export class Pet extends BasePetType {
+	// Default sequence tree - basic walk/sit pattern
+	sequence: ISequenceTree = {
+		startingState: States.sitIdle,
+		sequenceStates: [
+			{
+				state: States.sitIdle,
+				possibleNextStates: [States.walkRight, States.walkLeft]
+			},
+			{
+				state: States.walkRight,
+				possibleNextStates: [States.walkLeft, States.sitIdle]
+			},
+			{
+				state: States.walkLeft,
+				possibleNextStates: [States.walkRight, States.sitIdle]
+			}
+		]
+	};
+
+	readonly label: string = 'pet';
+	readonly emoji: string = '🐾';
+
+	get canSwipe(): boolean {
+		return !isStateAboveGround(this.currentStateEnum);
+	}
+
+	get canChase(): boolean {
+		return true;
+	}
+
+	get climbSpeed(): number {
+		return 0;
+	}
+
+	get climbHeight(): number {
+		return 0;
+	}
+
+	get fallSpeed(): number {
+		return 3.2;
+	}
+
+	get hello(): string {
+		return `Hello, I'm ${this.name}!`;
+	}
+
+	constructor(
+		app: App,
+		petType: PetType | string,
+		petColor: PetColor | string,
+		petSize: PetSize,
+		name: string,
+		floorString: string = '0%',
+		left: number = 100
+	) {
+		// Convert string types to enums for backward compatibility
+		const typeEnum = typeof petType === 'string' ? petType as PetType : petType;
+		const colorEnum = typeof petColor === 'string' ? petColor as PetColor : petColor;
+
+		super(app, typeEnum, colorEnum, petSize, name, floorString, left);
+		this.initState();
 	}
 }

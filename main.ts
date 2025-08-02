@@ -1,18 +1,45 @@
-import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { PetView, PET_VIEW_TYPE } from './src/PetView';
+import { PetSuggestModal } from './src/PetSuggestModal';
+import { ImportPetsModal } from './src/ImportPetsModal';
+import { PetSize, PetType, PetColor } from "./src/types";
+import { DEFAULT_PET_SIZE, DEFAULT_PET_TYPE, DEFAULT_PET_COLOR, DEFAULT_THEME } from './src/constants';
+import { availableColors } from './src/pets-factory';
 
-// Remember to rename these classes and interfaces!
+interface SavedPet {
+	type: string;
+	color: string;
+	size: string;
+	name: string;
+}
 
 interface PetPluginSettings {
 	petType: string;
 	petColor: string;
+	petSize: string;
 	theme: string;
+	effect: string;
+	throwBallWithMouse: boolean;
+	disableEffects: boolean;
+	savedPets: SavedPet[];
 }
 
 const DEFAULT_SETTINGS: PetPluginSettings = {
-	petType: 'dog',
-	petColor: 'brown',
-	theme: 'none',
+	petType: DEFAULT_PET_TYPE,
+	petColor: DEFAULT_PET_COLOR,
+	petSize: DEFAULT_PET_SIZE,
+	theme: DEFAULT_THEME,
+	effect: 'none',
+	throwBallWithMouse: true,
+	disableEffects: false,
+	savedPets: [],
+}
+
+// Get valid color for a pet, fallback to first available color
+function getValidColorForPet(petType: string, currentColor: string): string {
+	const colors = availableColors(petType as PetType);
+	const colorStrings = colors.map(c => c.toString());
+	return colorStrings.includes(currentColor) ? currentColor : colorStrings[0];
 }
 
 
@@ -49,7 +76,12 @@ export default class MyPlugin extends Plugin {
 				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 				if (leaf) {
 					const petView = leaf.view as PetView;
-					petView.spawnPet(this.settings.petType, this.settings.petColor);
+					// Open the selection modal, just like the '+' button does.
+					new PetSuggestModal(this.app, petView).open();
+				} else {
+					// If the pet view is not open, we could optionally open it first.
+					// For now, it does nothing if the view is not open.
+					this.activateView(); // Let's open the view if it's not already.
 				}
 			}
 		});
@@ -74,6 +106,78 @@ export default class MyPlugin extends Plugin {
 				if (leaf) {
 					const petView = leaf.view as PetView;
 					petView.throwBall();
+				}
+			}
+		});
+
+		this.addCommand({
+			id: 'export-pet-list',
+			name: 'Export pet list',
+			callback: async () => {
+				const petListJson = JSON.stringify(this.settings.savedPets, null, 2);
+				const fileName = `pets-${Date.now()}.json`;
+
+				try {
+					// Create a new note with the pet data
+					await this.app.vault.create(fileName, petListJson);
+					console.log(`Pets exported to ${fileName}`);
+				} catch (error) {
+					console.error('Failed to export pets:', error);
+				}
+			}
+		});
+
+		this.addCommand({
+			id: 'import-pet-list',
+			name: 'Import pet list',
+			callback: async () => {
+				new ImportPetsModal(this.app, async (pets) => {
+					// Replace current pets with imported pets
+					this.settings.savedPets = pets;
+					await this.saveSettings();
+
+					// Reload pets in the view
+					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+					if (leaf) {
+						const petView = leaf.view as PetView;
+						await petView.loadPetsFromSettings();
+					}
+				}).open();
+			}
+		});
+
+		this.addCommand({
+			id: 'roll-call',
+			name: 'Roll call',
+			callback: () => {
+				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+				if (leaf) {
+					const petView = leaf.view as PetView;
+					petView.rollCall();
+				}
+			}
+		});
+
+		this.addCommand({
+			id: 'toggle-pause',
+			name: 'Toggle pause',
+			callback: () => {
+				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+				if (leaf) {
+					const petView = leaf.view as PetView;
+					petView.togglePause();
+				}
+			}
+		});
+
+		this.addCommand({
+			id: 'reset-pets',
+			name: 'Reset pets',
+			callback: () => {
+				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+				if (leaf) {
+					const petView = leaf.view as PetView;
+					petView.clearAllPets();
 				}
 			}
 		});
@@ -104,7 +208,7 @@ export default class MyPlugin extends Plugin {
 		const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 		if (leaf) {
 			const petView = leaf.view as PetView;
-			petView.spawnPet(this.settings.petType, this.settings.petColor);
+			await petView.spawnPet(this.settings.petType, this.settings.petColor, this.settings.petSize as PetSize, `${this.settings.petColor} ${this.settings.petType}`);
 		}
 	}
 
@@ -143,41 +247,106 @@ class PetSettingTab extends PluginSettingTab {
 			.setName('Pet Type')
 			.setDesc('Choose your pet!')
 			.addDropdown(dropdown => dropdown
-				.addOption('dog', 'Dog')
-				.addOption('cat', 'Cat (WIP)')
-				.addOption('crab', 'Crab')
-				.addOption('clippy', 'Clippy')
 				.addOption('chicken', 'Chicken')
+				.addOption('clippy', 'Clippy')
+				.addOption('cockatiel', 'Cockatiel')
+				.addOption('crab', 'Crab')
+				.addOption('deno', 'Deno')
+				.addOption('dog', 'Dog')
 				.addOption('fox', 'Fox')
+				.addOption('horse', 'Horse')
+				.addOption('mod', 'Mod')
+				.addOption('morph', 'Morph')
+				.addOption('panda', 'Panda')
+				.addOption('rat', 'Rat')
+				.addOption('rocky', 'Rocky')
+				.addOption('rubber-duck', 'Rubber Duck')
+				.addOption('skeleton', 'Skeleton')
+				.addOption('snail', 'Snail')
+				.addOption('snake', 'Snake')
+				.addOption('totoro', 'Totoro')
+				.addOption('turtle', 'Turtle')
+				.addOption('zappy', 'Zappy')
 				.setValue(this.plugin.settings.petType)
 				.onChange(async (value) => {
 					this.plugin.settings.petType = value;
+					// Validate and update color if needed
+					this.plugin.settings.petColor = getValidColorForPet(value, this.plugin.settings.petColor);
+					await this.plugin.saveSettings();
+					// Refresh the settings display to update available colors
+					this.display();
 					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 					if (leaf) {
 						const petView = leaf.view as PetView;
-						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor);
+						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
 					}
 				}));
+
+		// Build color dropdown dynamically based on available colors for current pet
+		const petAvailableColors = availableColors(this.plugin.settings.petType as PetType);
+		const availableColorStrings = petAvailableColors.map(c => c.toString());
+		const colorMapping: Record<string, string> = {
+			'brown': 'Brown',
+			'black': 'Black',
+			'red': 'Red',
+			'green': 'Green',
+			'yellow': 'Yellow',
+			'gray': 'Gray',
+			'white': 'White',
+			'orange': 'Orange',
+			'pink': 'Pink',
+			'blue': 'Blue',
+			'purple': 'Purple',
+			'akita': 'Akita',
+			'socksblack': 'Socks Black',
+			'socksbeige': 'Socks Beige',
+			'socksbrown': 'Socks Brown',
+			'paintbeige': 'Paint Beige',
+			'paintblack': 'Paint Black',
+			'paintbrown': 'Paint Brown',
+			'magical': 'Magical',
+			'warrior': 'Warrior'
+		};
 
 		new Setting(containerEl)
 			.setName('Pet Color')
 			.setDesc('Choose the color of your pet.')
+			.addDropdown(dropdown => {
+				// Add only available colors for current pet type
+				availableColorStrings.forEach(color => {
+					dropdown.addOption(color, colorMapping[color] || color);
+				});
+				return dropdown
+					.setValue(this.plugin.settings.petColor)
+					.onChange(async (value) => {
+						this.plugin.settings.petColor = value;
+						await this.plugin.saveSettings();
+						const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+						if (leaf) {
+							const petView = leaf.view as PetView;
+							petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
+						}
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Pet Size')
+			.setDesc('Choose the size of your pets.')
 			.addDropdown(dropdown => dropdown
-				.addOption('brown', 'Brown')
-				.addOption('black', 'Black')
-				.addOption('red', 'Red')
-				.addOption('green', 'Green')
-				.addOption('yellow', 'Yellow')
-				.addOption('gray', 'Gray')
-				.addOption('white', 'White')
-				.setValue(this.plugin.settings.petColor)
+				.addOption('nano', 'Nano')
+				.addOption('small', 'Small')
+				.addOption('medium', 'Medium')
+				.addOption('large', 'Large')
+				.setValue(this.plugin.settings.petSize)
 				.onChange(async (value) => {
-					this.plugin.settings.petColor = value;
+					this.plugin.settings.petSize = value;
 					await this.plugin.saveSettings();
+
+					// Respawn the pet with the new size
 					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 					if (leaf) {
 						const petView = leaf.view as PetView;
-						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor);
+						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
 					}
 				}));
 
@@ -190,6 +359,7 @@ class PetSettingTab extends PluginSettingTab {
 				.addOption('forest', 'Forest')
 				.addOption('beach', 'Beach')
 				.addOption('winter', 'Winter')
+				.addOption('autumn', 'Autumn')
 				.setValue(this.plugin.settings.theme)
 				.onChange(async (value) => {
 					this.plugin.settings.theme = value;
@@ -200,6 +370,59 @@ class PetSettingTab extends PluginSettingTab {
 					if (leaf) {
 						const petView = leaf.view as PetView;
 						petView.applyTheme(this.plugin.settings.theme);
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Visual Effect')
+			.setDesc('Choose a visual effect to display (snow, stars, or leaves).')
+			.addDropdown(dropdown => dropdown
+				.addOption('none', 'None')
+				.addOption('snow', 'Snow')
+				.addOption('stars', 'Stars')
+				.addOption('leaves', 'Leaves')
+				.setValue(this.plugin.settings.effect)
+				.onChange(async (value) => {
+					this.plugin.settings.effect = value;
+					await this.plugin.saveSettings();
+
+					// Tell the view to update its effect
+					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+					if (leaf) {
+						const petView = leaf.view as PetView;
+						petView.setEffect(this.plugin.settings.effect);
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Throw Ball with Mouse')
+			.setDesc('Enable click-and-drag to throw balls for pets to chase.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.throwBallWithMouse)
+				.onChange(async (value) => {
+					this.plugin.settings.throwBallWithMouse = value;
+					await this.plugin.saveSettings();
+
+					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+					if (leaf) {
+						const petView = leaf.view as PetView;
+						petView.setThrowWithMouse(value);
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Disable Effects')
+			.setDesc('Disable all visual effects for better performance.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.disableEffects)
+				.onChange(async (value) => {
+					this.plugin.settings.disableEffects = value;
+					await this.plugin.saveSettings();
+
+					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+					if (leaf) {
+						const petView = leaf.view as PetView;
+						petView.setDisableEffects(value);
 					}
 				}));
 
