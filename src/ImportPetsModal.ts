@@ -8,9 +8,9 @@ interface SavedPet {
 }
 
 export class ImportPetsModal extends Modal {
-	private onImport: (pets: SavedPet[]) => void;
+	private onImport: (pets: SavedPet[]) => void | Promise<void>;
 
-	constructor(app: App, onImport: (pets: SavedPet[]) => void) {
+	constructor(app: App, onImport: (pets: SavedPet[]) => void | Promise<void>) {
 		super(app);
 		this.onImport = onImport;
 	}
@@ -37,24 +37,26 @@ export class ImportPetsModal extends Modal {
 				cls: "import-file-button"
 			});
 
-			fileButton.addEventListener("click", async () => {
-				try {
-					const content = await this.app.vault.read(file);
-					const pets = JSON.parse(content) as SavedPet[];
+			fileButton.addEventListener("click", () => {
+				void (async () => {
+					try {
+						const content = await this.app.vault.read(file);
+						const pets = JSON.parse(content) as SavedPet[];
 
-					// Validate the imported data
-					if (!Array.isArray(pets)) {
-						new Notice("Invalid pet data format");
-						return;
+						// Validate the imported data
+						if (!Array.isArray(pets)) {
+							new Notice("Invalid pet data format");
+							return;
+						}
+
+						await this.onImport(pets);
+						this.close();
+						new Notice(`Imported ${pets.length} pets`);
+					} catch (error) {
+						console.error("Failed to import pets:", error);
+						new Notice("Failed to import pets. Check the file format.");
 					}
-
-					this.onImport(pets);
-					this.close();
-					new Notice(`Imported ${pets.length} pets`);
-				} catch (error) {
-					console.error("Failed to import pets:", error);
-					new Notice("Failed to import pets. Check the file format.");
-				}
+				})();
 			});
 		});
 	}

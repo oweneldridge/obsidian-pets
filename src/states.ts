@@ -121,7 +121,7 @@ export function isStateAboveGround(state: States): boolean {
     );
 }
 
-export function resolveState(state: string, pet: IPetType): IState {
+export function resolveState(state: States, pet: IPetType): IState {
     switch (state) {
         case States.sitIdle:
             return new SitIdleState(pet);
@@ -377,8 +377,8 @@ export class ChaseFriendState implements IState {
         if (!this.pet.hasFriend || !this.pet.friend?.isPlaying) {
             return FrameResult.stateCancel; // Friend is no longer playing.
         }
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        if (this.pet.left > this.pet.friend!.left) {
+        // Friend is guaranteed to exist after the check above
+        if (this.pet.left > this.pet.friend.left) {
             this.horizontalDirection = HorizontalDirection.left;
             this.pet.positionLeft(this.pet.left - this.pet.speed);
         } else {

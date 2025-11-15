@@ -41,11 +41,11 @@ export async function initializeLocale(): Promise<void> {
 	try {
 		const response = await requestUrl(`l10n/bundle.l10n.${normalizedLocale}.json`);
 		if (response.status === 200) {
-			translations = response.json;
+			translations = response.json as Record<string, string>;
 		} else {
 			// Fallback to English
 			const fallbackResponse = await requestUrl('l10n/bundle.l10n.en.json');
-			translations = fallbackResponse.json;
+			translations = fallbackResponse.json as Record<string, string>;
 		}
 	} catch (error) {
 		console.error('Failed to load localization files:', error);

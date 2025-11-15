@@ -40,6 +40,6 @@ export class RemovePetModal extends SuggestModal<PetSuggestion> {
 
 	// When a pet is chosen, call the view to remove it by its ID
 	onChooseSuggestion(pet: PetSuggestion, evt: MouseEvent | KeyboardEvent) {
-		this.view.removePetById(pet.id);
+		void this.view.removePetById(pet.id);
 	}
 }
