@@ -53,12 +53,12 @@ You can customize the pet type, color, size, and background theme from the plugi
 
 ## Features
 
-This plugin now has **full feature parity** with vscode-pets! 🎉
+This plugin maintains core vscode-pets behaviors while adapting them for Obsidian! 🎉
 
-### Pet Types (20+ varieties)
+### Pet Types (20 varieties)
 
-*   **Classic Pets**: Dog, Cat, Crab
-*   **Tech Mascots**: Clippy, Rubber Duck, Rocky, Mod (dotnet bot), Ferris (Rust crab), Deno
+*   **Classic Pets**: Dog, Crab
+*   **Tech Mascots**: Clippy, Rubber Duck, Rocky, Mod (dotnet bot), Deno
 *   **Birds**: Chicken, Cockatiel
 *   **Reptiles**: Snake, Turtle
 *   **Mammals**: Fox, Horse, Panda, Rat
@@ -104,7 +104,9 @@ All features are accessible via the command palette:
 *   Open Pet View
 *   Spawn an additional pet
 *   Remove all pets
+*   Delete a pet (select a specific pet to remove)
 *   Throw ball
+*   Toggle throw ball with mouse (enable/disable click-and-drag ball throwing)
 *   Export pet list
 *   Import pet list
 *   Roll call
