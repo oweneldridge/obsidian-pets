@@ -282,7 +282,7 @@ class PetSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName('Pet Type')
+			.setName('Pet type')
 			.setDesc('Choose your pet!')
 			.addDropdown(dropdown => dropdown
 				.addOption('chicken', 'Chicken')
@@ -348,7 +348,7 @@ class PetSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(containerEl)
-			.setName('Pet Color')
+			.setName('Pet color')
 			.setDesc('Choose the color of your pet.')
 			.addDropdown(dropdown => {
 				// Add only available colors for current pet type
@@ -369,7 +369,7 @@ class PetSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName('Pet Size')
+			.setName('Pet size')
 			.setDesc('Choose the size of your pets.')
 			.addDropdown(dropdown => dropdown
 				.addOption('nano', 'Nano')
@@ -413,7 +413,7 @@ class PetSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Visual Effect')
+			.setName('Visual effect')
 			.setDesc('Choose a visual effect to display (snow, stars, or leaves).')
 			.addDropdown(dropdown => dropdown
 				.addOption('none', 'None')

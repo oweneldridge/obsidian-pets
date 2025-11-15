@@ -121,12 +121,12 @@ export class StarEffect implements Effect {
 
         // Draw the stars
         if (this.ctx === null || !this.canvas) {
-            console.log('Canvas context not initialized');
+            console.debug('Canvas context not initialized');
             return;
         }
         this.enabled = true;
         this.loop();
-        console.log('Stars enabled');
+        console.debug('Stars enabled');
     }
 
     private draw(): void {
@@ -143,13 +143,13 @@ export class StarEffect implements Effect {
 
     disable(): void {
         if (!this.ctx || !this.canvas) {
-            console.log('Canvas context not initialized');
+            console.debug('Canvas context not initialized');
             return;
         }
         this.enabled = false;
         // Clear the canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        console.log('Stars disabled');
+        console.debug('Stars disabled');
     }
 
     private loop(): void {
@@ -162,7 +162,7 @@ export class StarEffect implements Effect {
 
     private clear(): void {
         if (!this.ctx || !this.canvas) {
-            console.log('Canvas or context not initialized');
+            console.debug('Canvas or context not initialized');
             return;
         }
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
