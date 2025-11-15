@@ -22,8 +22,9 @@ export interface ObsidianApp extends App {
  */
 export function isObsidianApp(app: App): app is ObsidianApp {
 	return 'plugins' in app &&
-	       typeof (app as any).plugins === 'object' &&
-	       'plugins' in (app as any).plugins;
+		typeof app.plugins === 'object' &&
+		app.plugins !== null &&
+		'plugins' in app.plugins;
 }
 
 /**

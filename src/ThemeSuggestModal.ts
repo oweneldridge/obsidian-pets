@@ -1,5 +1,8 @@
 import { App, SuggestModal } from "obsidian";
 import { PetView } from "./PetView";
+import { PLUGIN_ID } from "./constants";
+import { getPlugin } from "./obsidian-types";
+import type VaultPetsPlugin from "../main";
 
 /**
  * Modal for selecting a theme for the pet view background
@@ -24,15 +27,15 @@ export class ThemeSuggestModal extends SuggestModal<string> {
 		el.createEl('div', { text: theme });
 	}
 
-	onChooseSuggestion(theme: string, evt: MouseEvent | KeyboardEvent) {
+	async onChooseSuggestion(theme: string, evt: MouseEvent | KeyboardEvent) {
 		// Apply the theme
 		this.view.applyTheme(theme);
 
 		// Update plugin settings
-		const plugin = (this.app as any).plugins.plugins['vault-pets'];
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (plugin) {
 			plugin.settings.theme = theme;
-			plugin.saveSettings();
+			await plugin.saveSettings();
 		}
 	}
 }
