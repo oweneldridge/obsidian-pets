@@ -159,7 +159,7 @@ export class LeafEffect implements Effect {
 
     private initParticles(): void {
         if (!this.canvas) {
-            console.log('Canvas not initialized');
+            console.warn('Canvas not initialized');
             return;
         }
         // clear the particles array
@@ -193,7 +193,7 @@ export class LeafEffect implements Effect {
 
     private update(): void {
         if (!this.canvas) {
-            console.log('Canvas not initialized');
+            console.warn('Canvas not initialized');
             return;
         }
         // calculate the time since the last frame
@@ -232,7 +232,7 @@ export class LeafEffect implements Effect {
 
     private draw(): void {
         if (!this.ctx) {
-            console.log('Canvas context not initialized');
+            console.warn('Canvas context not initialized');
             return;
         }
 
@@ -278,7 +278,7 @@ export class LeafEffect implements Effect {
 
     private clear(): void {
         if (!this.ctx || !this.canvas) {
-            console.log('Canvas or context not initialized');
+            console.warn('Canvas or context not initialized');
             return;
         }
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

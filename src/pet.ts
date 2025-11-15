@@ -7,13 +7,14 @@ import {
 	HorizontalDirection,
 	FrameResult,
 	resolveState,
-	PetState,
 	isStateAboveGround
 } from "./states";
 import { ISequenceTree } from "./sequences";
 import { Ball } from "./ball";
 import { PetSize, PetColor, PetType } from "./types";
 import { PLUGIN_ID } from "./constants";
+import { getPlugin } from "./obsidian-types";
+import type VaultPetsPlugin from "../main";
 
 /**
  * State persistence structure for saving/loading pet state
@@ -106,7 +107,7 @@ export abstract class BasePetType implements IPetType {
 
 		// Debug easter egg: log creation details when pet is named "debug"
 		if (this.name.toLowerCase() === 'debug') {
-			console.log(
+			console.debug(
 				`Creating pet ${this.name} of type ${this.petType} with size ${this.petSize} at position (${this._left}, ${this._bottom}) with speed ${this._speed}`
 			);
 		}
@@ -289,7 +290,7 @@ export abstract class BasePetType implements IPetType {
 	 * Get the full path to a media asset
 	 */
 	private getAssetPath(asset: string): string {
-		const plugin = (this.app as any).plugins.getPlugin(PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return '';
 		return this.app.vault.adapter.getResourcePath(
 			`${plugin.app.vault.configDir}/plugins/${PLUGIN_ID}/media/${asset}`
@@ -299,18 +300,11 @@ export abstract class BasePetType implements IPetType {
 	// Swipe ability
 	abstract get canSwipe(): boolean;
 
-	// State holding for temporary states like swipe
-	private holdState?: IState;
-	private holdStateEnum?: States;
-
 	swipe(): void {
 		// Don't swipe if already swiping
 		if (this.currentStateEnum === States.swipe) {
 			return;
 		}
-		// Save current state to return to after swipe
-		this.holdState = this.currentState;
-		this.holdStateEnum = this.currentStateEnum;
 		// Switch to swipe state
 		this.currentStateEnum = States.swipe;
 		this.currentState = resolveState(States.swipe, this);

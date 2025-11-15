@@ -34,11 +34,9 @@ export class Ball {
 
 		this.el = document.createElement('div');
 		this.el.addClass('pet-ball');
-		this.el.style.position = 'absolute';
+		// Dynamic sizing based on pet size
 		this.el.style.width = `${size}px`;
 		this.el.style.height = `${size}px`;
-		this.el.style.borderRadius = '50%';
-		this.el.style.backgroundColor = '#2ed851'; // Green color to match vscode-pets
 	}
 
 	/**
