@@ -7,7 +7,6 @@ import {
 	HorizontalDirection,
 	FrameResult,
 	resolveState,
-	PetState,
 	isStateAboveGround
 } from "./states";
 import { ISequenceTree } from "./sequences";
@@ -301,18 +300,11 @@ export abstract class BasePetType implements IPetType {
 	// Swipe ability
 	abstract get canSwipe(): boolean;
 
-	// State holding for temporary states like swipe
-	private holdState?: IState;
-	private holdStateEnum?: States;
-
 	swipe(): void {
 		// Don't swipe if already swiping
 		if (this.currentStateEnum === States.swipe) {
 			return;
 		}
-		// Save current state to return to after swipe
-		this.holdState = this.currentState;
-		this.holdStateEnum = this.currentStateEnum;
 		// Switch to swipe state
 		this.currentStateEnum = States.swipe;
 		this.currentState = resolveState(States.swipe, this);

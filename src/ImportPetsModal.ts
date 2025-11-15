@@ -1,5 +1,4 @@
-import { App, Modal, Notice, TFile } from "obsidian";
-import { PetSize } from "./types";
+import { App, Modal, Notice } from "obsidian";
 
 interface SavedPet {
 	type: string;
