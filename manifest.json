@@ -3,9 +3,8 @@
 	"name": "Vault Pets",
 	"version": "1.0.3",
 	"minAppVersion": "1.1.9",
-	"description": "Direct translation of vscode-pets to OBSD. Adds a cute pet to your OBSD vault that follows you around.",
-	"author": "Priyadarshan Giri",
-	"authorUrl": "https://giripriyadarshan.com",
-	"fundingUrl": "https://buymeacoffee.com/priyadarshan",
+	"description": "Bring adorable pixel-art pets to your Obsidian notes - watch them wander, throw them balls, and customize their appearance with themes and effects.",
+	"author": "Owen Eldridge",
+	"authorUrl": "https://github.com/oweneldridge",
 	"isDesktopOnly": true
 }
