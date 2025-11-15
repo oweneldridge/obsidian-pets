@@ -14,6 +14,7 @@ import { Effect } from './effects/effect';
 import { SnowEffect } from './effects/snow';
 import { StarEffect } from './effects/stars';
 import { LeafEffect } from './effects/leaves';
+import type VaultPetsPlugin from '../main';
 
 export const PET_VIEW_TYPE = "pet-view";
 
@@ -52,11 +53,11 @@ export class PetView extends ItemView {
 				pet.containerWidth = viewWidth;
 			});
 
-			const plugin = getPlugin(this.app, PLUGIN_ID);
+			const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 			if (!plugin) return;
 
-			const theme = (plugin as any).settings.theme;
-			const petSize = (plugin as any).settings.petSize as PetSize;
+			const theme = plugin.settings.theme;
+			const petSize = plugin.settings.petSize as PetSize;
 			const floorPercentString = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
 			const floorPercent = parseFloat(floorPercentString);
 			const floorY = viewHeight - (viewHeight * (floorPercent / 100));
@@ -146,10 +147,10 @@ export class PetView extends ItemView {
 			return false;
 		}
 
-		const plugin = getPlugin(this.app, PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return false;
 
-		const theme = (plugin as any).settings.theme;
+		const theme = plugin.settings.theme;
 		const floor = THEME_FLOOR_MAP[theme]?.[size] ?? '0%';
 		const randomLeft = this.randomStartPosition();
 
@@ -224,10 +225,10 @@ export class PetView extends ItemView {
 			}
 		}
 
-		const plugin = getPlugin(this.app, PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return false;
 
-		const petSize = (plugin as any).settings.petSize as PetSize;
+		const petSize = plugin.settings.petSize as PetSize;
 		const newBall = new Ball(this.app, this.contentEl.offsetWidth / 2, this.contentEl.offsetHeight / 2, petSize);
 		this.balls.push(newBall);
 		newBall.spawn(this.contentEl);
@@ -245,7 +246,7 @@ export class PetView extends ItemView {
 	 * Save current pets to plugin settings with enhanced state persistence
 	 */
 	async savePetsToSettings() {
-		const plugin = getPlugin(this.app, PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return;
 
 		const savedPets = this.pets.map(pet => ({
@@ -259,18 +260,18 @@ export class PetView extends ItemView {
 			bottom: pet.bottom
 		}));
 
-		(plugin as any).settings.savedPets = savedPets;
-		await (plugin as any).saveSettings();
+		plugin.settings.savedPets = savedPets;
+		await plugin.saveSettings();
 	}
 
 	/**
 	 * Load pets from plugin settings with enhanced state restoration
 	 */
 	async loadPetsFromSettings() {
-		const plugin = getPlugin(this.app, PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return;
 
-		const savedPets = (plugin as any).settings.savedPets || [];
+		const savedPets = plugin.settings.savedPets || [];
 
 		// Clear existing pets first
 		this.pets.forEach(pet => {
@@ -283,10 +284,10 @@ export class PetView extends ItemView {
 
 		// First pass: Spawn each saved pet
 		for (const saved of savedPets) {
-			const theme = (plugin as any).settings.theme;
+			const theme = plugin.settings.theme;
 			const petSize = saved.size as PetSize;
 			const floor = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
-			const left = saved.left ?? 100; // Use saved position or default
+			const left = 100; // Default position
 
 			// Use factory to create pet with proper typing
 			const newPet = createPet(
@@ -317,16 +318,18 @@ export class PetView extends ItemView {
 		}
 
 		// Second pass: Restore friend relationships
-		for (let i = 0; i < savedPets.length; i++) {
-			const saved = savedPets[i];
-			if (saved.friend) {
-				const pet = this.pets[i];
-				const friendPet = petsByName.get(saved.friend);
-				if (pet && friendPet) {
-					pet.recoverFriend(friendPet);
-				}
-			}
-		}
+		// Note: friend relationships are not currently saved in SavedPet interface
+		// This functionality may be re-enabled in the future
+		// for (let i = 0; i < savedPets.length; i++) {
+		// 	const saved = savedPets[i];
+		// 	if (saved.friend) {
+		// 		const pet = this.pets[i];
+		// 		const friendPet = petsByName.get(saved.friend);
+		// 		if (pet && friendPet) {
+		// 			pet.recoverFriend(friendPet);
+		// 		}
+		// 	}
+		// }
 	}
 
 	/**
@@ -344,6 +347,9 @@ export class PetView extends ItemView {
 		}
 
 		if (theme !== 'none') {
+			const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
+			if (!plugin) return;
+
 			const isDarkMode = document.body.classList.contains('theme-dark');
 			const themeKind = isDarkMode ? 'dark' : 'light';
 
@@ -355,7 +361,7 @@ export class PetView extends ItemView {
 			else { size = PetSize.large; }
 
 			const backgroundUrl = this.app.vault.adapter.getResourcePath(
-				`${(this.app as any).plugins.plugins['vault-pets'].app.vault.configDir}/plugins/vault-pets/media/backgrounds/${theme}/background-${themeKind}-${size}.png`
+				`${plugin.app.vault.configDir}/plugins/${PLUGIN_ID}/media/backgrounds/${theme}/background-${themeKind}-${size}.png`
 			);
 
 			this.contentEl.addClass('pet-view-with-theme');
@@ -363,7 +369,7 @@ export class PetView extends ItemView {
 
 			// Add theme-aware foreground layer for depth
 			const foregroundUrl = this.app.vault.adapter.getResourcePath(
-				`${(this.app as any).plugins.plugins['vault-pets'].app.vault.configDir}/plugins/vault-pets/media/backgrounds/${theme}/foreground-${themeKind}-${size}.png`
+				`${plugin.app.vault.configDir}/plugins/${PLUGIN_ID}/media/backgrounds/${theme}/foreground-${themeKind}-${size}.png`
 			);
 
 			const foregroundLayer = this.contentEl.createDiv({
@@ -402,35 +408,35 @@ export class PetView extends ItemView {
 	 * Set the visual effect (snow, stars, leaves, or none)
 	 */
 	setEffect(effectType: string) {
-		console.log(`🎨 setEffect called with: ${effectType}`);
+		console.debug(`🎨 setEffect called with: ${effectType}`);
 
 		// Disable current effect if any
 		if (this.currentEffect) {
-			console.log(`🛑 Disabling current effect: ${this.currentEffect.name}`);
+			console.debug(`🛑 Disabling current effect: ${this.currentEffect.name}`);
 			this.currentEffect.disable();
 			this.currentEffect = undefined;
 		}
 
 		// Clear canvases when switching effects (always clear to remove old effect residue)
-		console.log('🧹 Clearing both canvases');
+		console.debug('🧹 Clearing both canvases');
 		if (this.foregroundCanvas) {
 			const ctx = this.foregroundCanvas.getContext('2d');
 			if (ctx) {
 				ctx.clearRect(0, 0, this.foregroundCanvas.width, this.foregroundCanvas.height);
-				console.log(`✅ Cleared foreground canvas (${this.foregroundCanvas.width}x${this.foregroundCanvas.height})`);
+				console.debug(`✅ Cleared foreground canvas (${this.foregroundCanvas.width}x${this.foregroundCanvas.height})`);
 			}
 		}
 		if (this.backgroundCanvas) {
 			const ctx = this.backgroundCanvas.getContext('2d');
 			if (ctx) {
 				ctx.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
-				console.log(`✅ Cleared background canvas (${this.backgroundCanvas.width}x${this.backgroundCanvas.height})`);
+				console.debug(`✅ Cleared background canvas (${this.backgroundCanvas.width}x${this.backgroundCanvas.height})`);
 			}
 		}
 
 		// Return early if switching to 'none'
 		if (effectType === 'none') {
-			console.log('⛔ Effect set to none, returning early');
+			console.debug('⛔ Effect set to none, returning early');
 			return;
 		}
 
@@ -443,11 +449,11 @@ export class PetView extends ItemView {
 			return;
 		}
 
-		const plugin = getPlugin(this.app, PLUGIN_ID);
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return;
 
-		const petSize = (plugin as any).settings.petSize as PetSize;
-		const theme = (plugin as any).settings.theme;
+		const petSize = plugin.settings.petSize as PetSize;
+		const theme = plugin.settings.theme;
 		const floorPercentString = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
 		const floorPercent = parseFloat(floorPercentString);
 		const viewHeight = this.contentEl.offsetHeight;
@@ -531,10 +537,10 @@ export class PetView extends ItemView {
 			const velocityX = (endX - startX) * 0.15;
 			const velocityY = (endY - startY) * 0.15;
 
-			const plugin = getPlugin(this.app, PLUGIN_ID);
+			const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 			if (!plugin) return;
 
-			const petSize = (plugin as any).settings.petSize as PetSize;
+			const petSize = plugin.settings.petSize as PetSize;
 			const newBall = new Ball(this.app, startX, startY, petSize, velocityX, velocityY);
 			this.balls.push(newBall);
 			newBall.spawn(this.contentEl);
@@ -652,9 +658,9 @@ export class PetView extends ItemView {
 			}
 
 			// Reapply theme to update background/foreground for new size
-			const plugin = getPlugin(this.app, PLUGIN_ID);
+			const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 			if (plugin) {
-				const theme = (plugin as any).settings.theme;
+				const theme = plugin.settings.theme;
 				if (theme) {
 					this.applyTheme(theme);
 				}
@@ -753,7 +759,7 @@ export class PetView extends ItemView {
 		setIcon(effectButton, 'sparkles');
 		effectButton.addEventListener('click', () => new EffectSuggestModal(this.app, this).open());
 
-		const plugin = (this.app as any).plugins.plugins['vault-pets'];
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (plugin) {
 			this.applyTheme(plugin.settings.theme);
 

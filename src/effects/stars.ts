@@ -102,7 +102,7 @@ export class StarEffect implements Effect {
                 Math.random() * (this.pSize[1] - this.pSize[0]) + this.pSize[0];
             this.stars.push(new Star(x, y, size, this.pSize[0], this.pSize[1]));
         }
-        console.log('Stars initialized 🌟');
+        console.debug('Stars initialized 🌟');
     }
 
     handleResize(): void {

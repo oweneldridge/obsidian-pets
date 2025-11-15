@@ -44,7 +44,7 @@ function getValidColorForPet(petType: string, currentColor: string): string {
 }
 
 
-export default class MyPlugin extends Plugin {
+export default class VaultPetsPlugin extends Plugin {
 	settings: PetPluginSettings;
 
 	async onload() {
@@ -60,14 +60,14 @@ export default class MyPlugin extends Plugin {
 		);
 
 		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dog', 'Open Pet View', () => {
+		this.addRibbonIcon('dog', 'Open pet view', () => {
 			this.activateView();
 		});
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
 			id: 'open-pet-view',
-			name: 'Open Pet View',
+			name: 'Open pet view',
 			callback: () => {
 				this.activateView();
 			}
@@ -124,7 +124,7 @@ export default class MyPlugin extends Plugin {
 				try {
 					// Create a new note with the pet data
 					await this.app.vault.create(fileName, petListJson);
-					console.log(`Pets exported to ${fileName}`);
+					console.debug(`Pets exported to ${fileName}`);
 				} catch (error) {
 					console.error('Failed to export pets:', error);
 				}
@@ -265,9 +265,9 @@ export default class MyPlugin extends Plugin {
 // in main.ts, at the bottom
 
 class PetSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: VaultPetsPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: VaultPetsPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -276,7 +276,10 @@ class PetSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		containerEl.empty();
-		containerEl.createEl('h2', { text: 'Obsidian Pets Settings' });
+
+		new Setting(containerEl)
+			.setName('Obsidian Pets Settings')
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName('Pet Type')
@@ -431,7 +434,7 @@ class PetSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Throw Ball with Mouse')
+			.setName('Throw ball with mouse')
 			.setDesc('Enable click-and-drag to throw balls for pets to chase.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.throwBallWithMouse)
@@ -447,7 +450,7 @@ class PetSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Disable Effects')
+			.setName('Disable effects')
 			.setDesc('Disable all visual effects for better performance.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.disableEffects)

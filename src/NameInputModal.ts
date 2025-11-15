@@ -2,6 +2,9 @@ import { App, Modal, Setting } from 'obsidian';
 import { PetView } from './PetView';
 import { PetSize } from './types';
 import { t } from './localize';
+import { PLUGIN_ID } from './constants';
+import { getPlugin } from './obsidian-types';
+import type VaultPetsPlugin from '../main';
 
 export class NameInputModal extends Modal {
 	view: PetView;
@@ -34,7 +37,7 @@ export class NameInputModal extends Modal {
 					.setCta()
 					.onClick(async () => {
 						this.close();
-						const plugin = (this.app as any).plugins.plugins['vault-pets'];
+						const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 						if (plugin) {
 							const petSize = plugin.settings.petSize as PetSize;
 							// Use the entered name, or a default if empty

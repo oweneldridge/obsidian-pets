@@ -1,4 +1,4 @@
-import { moment } from 'obsidian';
+import { moment, requestUrl } from 'obsidian';
 
 // Localization translations loaded from l10n files
 let translations: Record<string, string> = {};
@@ -39,13 +39,13 @@ export async function initializeLocale(): Promise<void> {
 
 	// Load translations
 	try {
-		const response = await fetch(`l10n/bundle.l10n.${normalizedLocale}.json`);
-		if (response.ok) {
-			translations = await response.json();
+		const response = await requestUrl(`l10n/bundle.l10n.${normalizedLocale}.json`);
+		if (response.status === 200) {
+			translations = response.json;
 		} else {
 			// Fallback to English
-			const fallbackResponse = await fetch('l10n/bundle.l10n.en.json');
-			translations = await fallbackResponse.json();
+			const fallbackResponse = await requestUrl('l10n/bundle.l10n.en.json');
+			translations = fallbackResponse.json;
 		}
 	} catch (error) {
 		console.error('Failed to load localization files:', error);
