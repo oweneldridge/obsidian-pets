@@ -61,7 +61,7 @@ export default class VaultPetsPlugin extends Plugin {
 
 		// This creates an icon in the left ribbon.
 		this.addRibbonIcon('dog', 'Open pet view', () => {
-			this.activateView();
+			void this.activateView();
 		});
 
 		// This adds a simple command that can be triggered anywhere
@@ -69,7 +69,7 @@ export default class VaultPetsPlugin extends Plugin {
 			id: 'open-pet-view',
 			name: 'Open pet view',
 			callback: () => {
-				this.activateView();
+				void this.activateView();
 			}
 		});
 
@@ -85,7 +85,7 @@ export default class VaultPetsPlugin extends Plugin {
 				} else {
 					// If the pet view is not open, we could optionally open it first.
 					// For now, it does nothing if the view is not open.
-					this.activateView(); // Let's open the view if it's not already.
+					void this.activateView(); // Let's open the view if it's not already.
 				}
 			}
 		});
@@ -134,7 +134,7 @@ export default class VaultPetsPlugin extends Plugin {
 		this.addCommand({
 			id: 'import-pet-list',
 			name: 'Import pet list',
-			callback: async () => {
+			callback: () => {
 				new ImportPetsModal(this.app, async (pets) => {
 					// Replace current pets with imported pets
 					this.settings.savedPets = pets;
@@ -144,7 +144,7 @@ export default class VaultPetsPlugin extends Plugin {
 					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 					if (leaf) {
 						const petView = leaf.view as PetView;
-						await petView.loadPetsFromSettings();
+						petView.loadPetsFromSettings();
 					}
 				}).open();
 			}
@@ -235,7 +235,7 @@ export default class VaultPetsPlugin extends Plugin {
 			});
 
 			// Finally, we reveal the leaf to make it visible
-			this.app.workspace.revealLeaf(leaf);
+			void this.app.workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -253,7 +253,7 @@ export default class VaultPetsPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<PetPluginSettings>);
 	}
 
 	async saveSettings() {
@@ -282,7 +282,7 @@ class PetSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName('Pet Type')
+			.setName('Pet type')
 			.setDesc('Choose your pet!')
 			.addDropdown(dropdown => dropdown
 				.addOption('chicken', 'Chicken')
@@ -316,7 +316,7 @@ class PetSettingTab extends PluginSettingTab {
 					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 					if (leaf) {
 						const petView = leaf.view as PetView;
-						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
+						void petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
 					}
 				}));
 
@@ -348,7 +348,7 @@ class PetSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(containerEl)
-			.setName('Pet Color')
+			.setName('Pet color')
 			.setDesc('Choose the color of your pet.')
 			.addDropdown(dropdown => {
 				// Add only available colors for current pet type
@@ -363,13 +363,13 @@ class PetSettingTab extends PluginSettingTab {
 						const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 						if (leaf) {
 							const petView = leaf.view as PetView;
-							petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
+							void petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
 						}
 					});
 			});
 
 		new Setting(containerEl)
-			.setName('Pet Size')
+			.setName('Pet size')
 			.setDesc('Choose the size of your pets.')
 			.addDropdown(dropdown => dropdown
 				.addOption('nano', 'Nano')
@@ -385,7 +385,7 @@ class PetSettingTab extends PluginSettingTab {
 					const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
 					if (leaf) {
 						const petView = leaf.view as PetView;
-						petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
+						void petView.resetAndSpawnPet(this.plugin.settings.petType, this.plugin.settings.petColor, this.plugin.settings.petSize as PetSize);
 					}
 				}));
 
@@ -413,7 +413,7 @@ class PetSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Visual Effect')
+			.setName('Visual effect')
 			.setDesc('Choose a visual effect to display (snow, stars, or leaves).')
 			.addDropdown(dropdown => dropdown
 				.addOption('none', 'None')
