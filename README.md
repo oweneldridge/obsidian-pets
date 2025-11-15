@@ -57,9 +57,10 @@ This plugin maintains core vscode-pets behaviors while adapting them for Obsidia
 
 ### Pet Types (20 varieties)
 
-*   **Classic Pets**: Dog, Crab
+*   **Classic Pets**: Dog
 *   **Tech Mascots**: Clippy, Rubber Duck, Rocky, Mod (dotnet bot), Deno
 *   **Birds**: Chicken, Cockatiel
+*   **Aquatic**: Crab
 *   **Reptiles**: Snake, Turtle
 *   **Mammals**: Fox, Horse, Panda, Rat
 *   **Unique**: Snail, Totoro, Zappy, Skeleton, Morph
