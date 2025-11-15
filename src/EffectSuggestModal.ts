@@ -1,5 +1,8 @@
 import { App, SuggestModal } from "obsidian";
 import { PetView } from "./PetView";
+import { PLUGIN_ID } from "./constants";
+import { getPlugin } from "./obsidian-types";
+import type VaultPetsPlugin from "../main";
 
 /**
  * Modal for selecting a visual effect (snow, stars, leaves)
@@ -24,15 +27,15 @@ export class EffectSuggestModal extends SuggestModal<string> {
 		el.createEl('div', { text: effect });
 	}
 
-	onChooseSuggestion(effect: string, evt: MouseEvent | KeyboardEvent) {
+	async onChooseSuggestion(effect: string, evt: MouseEvent | KeyboardEvent) {
 		// Apply the effect
 		this.view.setEffect(effect);
 
 		// Update plugin settings
-		const plugin = (this.app as any).plugins.plugins['vault-pets'];
+		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (plugin) {
 			plugin.settings.effect = effect;
-			plugin.saveSettings();
+			await plugin.saveSettings();
 		}
 	}
 }
