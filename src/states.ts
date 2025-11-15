@@ -377,7 +377,7 @@ export class ChaseFriendState implements IState {
         if (!this.pet.hasFriend || !this.pet.friend?.isPlaying) {
             return FrameResult.stateCancel; // Friend is no longer playing.
         }
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        // Friend is guaranteed to exist after the check above
         if (this.pet.left > this.pet.friend.left) {
             this.horizontalDirection = HorizontalDirection.left;
             this.pet.positionLeft(this.pet.left - this.pet.speed);

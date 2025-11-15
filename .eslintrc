@@ -3,7 +3,8 @@
     "parser": "@typescript-eslint/parser",
     "env": { "node": true },
     "plugins": [
-      "@typescript-eslint"
+      "@typescript-eslint",
+      "eslint-comments"
     ],
     "extends": [
       "eslint:recommended",
@@ -20,6 +21,37 @@
       "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
-      "@typescript-eslint/no-empty-function": "off"
-    } 
+      "@typescript-eslint/no-empty-function": "off",
+
+      // ObsidianReviewBot: Only allow console.warn, console.error, console.debug
+      "no-console": ["error", {
+        "allow": ["warn", "error", "debug"]
+      }],
+
+      // ObsidianReviewBot: Explicit any types not allowed
+      "@typescript-eslint/no-explicit-any": "error",
+
+      // ObsidianReviewBot: Promises must be handled
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+
+      // ObsidianReviewBot: Async functions should have await
+      "@typescript-eslint/require-await": "error",
+
+      // ObsidianReviewBot: Enum safety
+      "@typescript-eslint/no-unsafe-enum-comparison": "error",
+
+      // ObsidianReviewBot: Type safety
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+
+      // ObsidianReviewBot: Unnecessary constructs
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/await-thenable": "error",
+
+      // ObsidianReviewBot: Directive comments must be described
+      "eslint-comments/require-description": "error"
+    }
   }
