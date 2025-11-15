@@ -99,6 +99,9 @@ export class PetView extends ItemView {
 				}
 				return stillInBounds;
 			});
+
+			// Seek new friends
+			this.seekNewFriends();
 		}
 
 		this.animationFrameId = window.requestAnimationFrame(this.gameLoop);
@@ -544,6 +547,48 @@ export class PetView extends ItemView {
 			setTimeout(() => {
 				pet.showSpeechBubble(`${pet.name}!`, 3000);
 			}, index * 500);
+		});
+	}
+
+	/**
+	 * Seek new friends for pets that don't have friends yet
+	 * When pets are near each other, they can become friends
+	 */
+	private seekNewFriends(): void {
+		if (this.pets.length <= 1) {
+			return; // Can't be friends with yourself
+		}
+
+		// Find pets without friends
+		const friendless = this.pets.filter(pet => !pet.hasFriend);
+		if (friendless.length <= 1) {
+			return; // Nobody to be friends with
+		}
+
+		// Try to match friendless pets
+		friendless.forEach(lonelyPet => {
+			const potentialFriends = friendless.filter(pet => pet !== lonelyPet);
+
+			potentialFriends.forEach(potentialFriend => {
+				// Check if potential friend is available (not chasing ball)
+				if (!potentialFriend.canChase) {
+					return;
+				}
+
+				// Check if pets are close to each other (overlapping horizontally)
+				const lonelyLeft = lonelyPet.left;
+				const friendLeft = potentialFriend.left;
+				const lonelyWidth = lonelyPet.width;
+
+				if (friendLeft > lonelyLeft && friendLeft < lonelyLeft + lonelyWidth) {
+					// Pets are near each other, make friends!
+					if (lonelyPet.makeFriendsWith(potentialFriend)) {
+						// Show heart speech bubbles
+						potentialFriend.showSpeechBubble('❤️', 2000);
+						lonelyPet.showSpeechBubble('❤️', 2000);
+					}
+				}
+			});
 		});
 	}
 
