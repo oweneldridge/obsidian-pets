@@ -2,7 +2,6 @@
 
 import { App, SuggestModal } from 'obsidian';
 import { PetView } from './PetView';
-import { PetSize } from './types';
 import { PET_COLOR_MAP } from './PetSuggestModal';
 import {NameInputModal} from "./NameInputModal";
 import { t } from './localize';

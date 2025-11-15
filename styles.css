@@ -7,6 +7,9 @@
 }
 
 .pet-ball {
+	position: absolute;
+	border-radius: 50%;
+	background-color: #2ed851; /* Green color to match vscode-pets */
 	z-index: 2;
 }
 

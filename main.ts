@@ -2,7 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { PetView, PET_VIEW_TYPE } from './src/PetView';
 import { PetSuggestModal } from './src/PetSuggestModal';
 import { ImportPetsModal } from './src/ImportPetsModal';
-import { PetSize, PetType, PetColor } from "./src/types";
+import { PetSize, PetType } from "./src/types";
 import { DEFAULT_PET_SIZE, DEFAULT_PET_TYPE, DEFAULT_PET_COLOR, DEFAULT_THEME } from './src/constants';
 import { availableColors } from './src/pets-factory';
 import { initializeLocale } from './src/localize';

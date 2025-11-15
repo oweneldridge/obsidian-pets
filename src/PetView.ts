@@ -28,7 +28,6 @@ export class PetView extends ItemView {
 	private backgroundCanvas?: HTMLCanvasElement;
 	private foregroundCanvas?: HTMLCanvasElement;
 	private currentEffect?: Effect;
-	private throwWithMouse: boolean = true;
 	private effectsDisabled: boolean = false;
 	private isPaused: boolean = false;
 	private _mouseDownHandler?: (e: MouseEvent) => void;
@@ -493,8 +492,6 @@ export class PetView extends ItemView {
 	 * @param enabled - Whether to enable mouse throwing
 	 */
 	setThrowWithMouse(enabled: boolean) {
-		this.throwWithMouse = enabled;
-
 		if (enabled) {
 			this.enableMouseThrow();
 		} else {
