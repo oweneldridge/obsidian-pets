@@ -266,7 +266,7 @@ export class PetView extends ItemView {
 	/**
 	 * Load pets from plugin settings with enhanced state restoration
 	 */
-	async loadPetsFromSettings() {
+	loadPetsFromSettings() {
 		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (!plugin) return;
 
@@ -379,7 +379,7 @@ export class PetView extends ItemView {
 
 		// Update the floor position for all existing pets without recreating them
 		this.pets.forEach(pet => {
-			const newFloor = THEME_FLOOR_MAP[theme]?.[pet.petSize as PetSize] ?? '0%';
+			const newFloor = THEME_FLOOR_MAP[theme]?.[pet.petSize] ?? '0%';
 			pet.setFloor(newFloor);
 		});
 	}
@@ -765,7 +765,7 @@ export class PetView extends ItemView {
 			this.effectsDisabled = plugin.settings.disableEffects ?? false;
 
 			// Load saved pets from settings
-			await this.loadPetsFromSettings();
+			this.loadPetsFromSettings();
 
 			// If no pets were saved, spawn a default pet
 			if (this.pets.length === 0) {
