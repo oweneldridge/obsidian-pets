@@ -18,7 +18,7 @@ export const BALL_MAX_LIFETIME_MS = 60000; // 1 minute
 export const ANIMATION_FRAME_MS = 16.67; // ~60 FPS
 
 /** Default pet size if not specified */
-export const DEFAULT_PET_SIZE = 'medium';
+export const DEFAULT_PET_SIZE = 'nano';
 
 /** Default pet type if not specified */
 export const DEFAULT_PET_TYPE = 'dog';

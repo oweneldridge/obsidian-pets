@@ -149,6 +149,7 @@ export class PetView extends ItemView {
 
 		const theme = (plugin as any).settings.theme;
 		const floor = THEME_FLOOR_MAP[theme]?.[size] ?? '0%';
+		const randomLeft = this.randomStartPosition();
 
 		// Use factory to create pet with proper typing
 		const newPet = createPet(
@@ -157,7 +158,8 @@ export class PetView extends ItemView {
 			color as PetColor,
 			size,
 			name,
-			floor
+			floor,
+			randomLeft
 		);
 
 		if (!newPet) {
@@ -171,6 +173,9 @@ export class PetView extends ItemView {
 		newPet.containerWidth = this.contentEl.offsetWidth;
 
 		newPet.spawn(this.contentEl);
+
+		// Add mouseover event listener for swipe interaction
+		this.setupSwipeInteraction(newPet);
 
 		// Save pets after spawning
 		await this.savePetsToSettings();
@@ -228,7 +233,14 @@ export class PetView extends ItemView {
 	}
 
 	/**
-	 * Save current pets to plugin settings
+	 * Open the modal to select and remove a pet
+	 */
+	openRemovePetModal() {
+		new RemovePetModal(this.app, this).open();
+	}
+
+	/**
+	 * Save current pets to plugin settings with enhanced state persistence
 	 */
 	async savePetsToSettings() {
 		const plugin = getPlugin(this.app, PLUGIN_ID);
@@ -238,7 +250,11 @@ export class PetView extends ItemView {
 			type: pet.petType,
 			color: pet.petColor,
 			size: pet.petSize,
-			name: pet.name
+			name: pet.name,
+			// Enhanced state: friend relationships and positions
+			friend: pet.friend?.name,
+			left: pet.left,
+			bottom: pet.bottom
 		}));
 
 		(plugin as any).settings.savedPets = savedPets;
@@ -246,7 +262,7 @@ export class PetView extends ItemView {
 	}
 
 	/**
-	 * Load pets from plugin settings
+	 * Load pets from plugin settings with enhanced state restoration
 	 */
 	async loadPetsFromSettings() {
 		const plugin = getPlugin(this.app, PLUGIN_ID);
@@ -260,11 +276,15 @@ export class PetView extends ItemView {
 		});
 		this.pets = [];
 
-		// Spawn each saved pet (without saving again to avoid infinite loop)
+		// Map to track pets by name for friend recovery
+		const petsByName = new Map<string, BasePetType>();
+
+		// First pass: Spawn each saved pet
 		for (const saved of savedPets) {
 			const theme = (plugin as any).settings.theme;
 			const petSize = saved.size as PetSize;
 			const floor = THEME_FLOOR_MAP[theme]?.[petSize] ?? '0%';
+			const left = saved.left ?? 100; // Use saved position or default
 
 			// Use factory to create pet with proper typing
 			const newPet = createPet(
@@ -273,7 +293,8 @@ export class PetView extends ItemView {
 				saved.color as PetColor,
 				petSize,
 				saved.name,
-				floor
+				floor,
+				left
 			);
 
 			if (!newPet) {
@@ -282,11 +303,27 @@ export class PetView extends ItemView {
 			}
 
 			this.pets.push(newPet);
+			petsByName.set(newPet.name, newPet);
 
 			// Set container width for boundary detection
 			newPet.containerWidth = this.contentEl.offsetWidth;
 
 			newPet.spawn(this.contentEl);
+
+			// Add mouseover event listener for swipe interaction
+			this.setupSwipeInteraction(newPet);
+		}
+
+		// Second pass: Restore friend relationships
+		for (let i = 0; i < savedPets.length; i++) {
+			const saved = savedPets[i];
+			if (saved.friend) {
+				const pet = this.pets[i];
+				const friendPet = petsByName.get(saved.friend);
+				if (pet && friendPet) {
+					pet.recoverFriend(friendPet);
+				}
+			}
 		}
 	}
 
@@ -296,6 +333,12 @@ export class PetView extends ItemView {
 	 */
 	applyTheme(theme: string) {
 		this.contentEl.style.backgroundImage = '';
+		// Remove any existing foreground layer
+		const existingForeground = this.contentEl.querySelector('.pet-view-foreground-layer');
+		if (existingForeground) {
+			existingForeground.remove();
+		}
+
 		if (theme !== 'none') {
 			const isDarkMode = document.body.classList.contains('theme-dark');
 			const themeKind = isDarkMode ? 'dark' : 'light';
@@ -315,6 +358,26 @@ export class PetView extends ItemView {
 			this.contentEl.style.backgroundSize = 'cover';
 			this.contentEl.style.backgroundRepeat = 'no-repeat';
 			this.contentEl.style.backgroundPosition = 'center';
+
+			// Add theme-aware foreground layer for depth
+			const foregroundUrl = this.app.vault.adapter.getResourcePath(
+				`${(this.app as any).plugins.plugins['vault-pets'].app.vault.configDir}/plugins/vault-pets/media/backgrounds/${theme}/foreground-${themeKind}-${size}.png`
+			);
+
+			const foregroundLayer = this.contentEl.createDiv({
+				cls: 'pet-view-foreground-layer'
+			});
+			foregroundLayer.style.position = 'absolute';
+			foregroundLayer.style.top = '0';
+			foregroundLayer.style.left = '0';
+			foregroundLayer.style.width = '100%';
+			foregroundLayer.style.height = '100%';
+			foregroundLayer.style.backgroundImage = `url('${foregroundUrl}')`;
+			foregroundLayer.style.backgroundSize = 'cover';
+			foregroundLayer.style.backgroundRepeat = 'no-repeat';
+			foregroundLayer.style.backgroundPosition = 'center';
+			foregroundLayer.style.pointerEvents = 'none';
+			foregroundLayer.style.zIndex = '50'; // Between pets (z-index 10) and foreground canvas (z-index 100)
 		}
 
 		// Update the floor position for all existing pets without recreating them
@@ -361,26 +424,35 @@ export class PetView extends ItemView {
 	 * Set the visual effect (snow, stars, leaves, or none)
 	 */
 	setEffect(effectType: string) {
+		console.log(`🎨 setEffect called with: ${effectType}`);
+
 		// Disable current effect if any
 		if (this.currentEffect) {
+			console.log(`🛑 Disabling current effect: ${this.currentEffect.name}`);
 			this.currentEffect.disable();
 			this.currentEffect = undefined;
 		}
 
-		// Clear canvases when switching to 'none' or if canvases don't exist
+		// Clear canvases when switching effects (always clear to remove old effect residue)
+		console.log('🧹 Clearing both canvases');
+		if (this.foregroundCanvas) {
+			const ctx = this.foregroundCanvas.getContext('2d');
+			if (ctx) {
+				ctx.clearRect(0, 0, this.foregroundCanvas.width, this.foregroundCanvas.height);
+				console.log(`✅ Cleared foreground canvas (${this.foregroundCanvas.width}x${this.foregroundCanvas.height})`);
+			}
+		}
+		if (this.backgroundCanvas) {
+			const ctx = this.backgroundCanvas.getContext('2d');
+			if (ctx) {
+				ctx.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+				console.log(`✅ Cleared background canvas (${this.backgroundCanvas.width}x${this.backgroundCanvas.height})`);
+			}
+		}
+
+		// Return early if switching to 'none'
 		if (effectType === 'none') {
-			if (this.foregroundCanvas) {
-				const ctx = this.foregroundCanvas.getContext('2d');
-				if (ctx) {
-					ctx.clearRect(0, 0, this.foregroundCanvas.width, this.foregroundCanvas.height);
-				}
-			}
-			if (this.backgroundCanvas) {
-				const ctx = this.backgroundCanvas.getContext('2d');
-				if (ctx) {
-					ctx.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
-				}
-			}
+			console.log('⛔ Effect set to none, returning early');
 			return;
 		}
 
@@ -551,6 +623,70 @@ export class PetView extends ItemView {
 	}
 
 	/**
+	 * Generate a random starting position for a new pet
+	 * Ensures pets don't spawn too close to edges
+	 * @returns Random x position in pixels
+	 */
+	private randomStartPosition(): number {
+		// Use 70% of container width to avoid edges
+		const safeWidth = this.contentEl.offsetWidth * 0.7;
+		return Math.floor(Math.random() * safeWidth);
+	}
+
+	/**
+	 * Setup swipe interaction on mouseover for a pet
+	 * @param pet - Pet to setup swipe interaction for
+	 */
+	private setupSwipeInteraction(pet: BasePetType): void {
+		// Add mouseover event to collision element
+		const handleMouseOver = () => {
+			if (pet.canSwipe) {
+				pet.swipe();
+			}
+		};
+
+		pet.collision.addEventListener('mouseover', handleMouseOver);
+	}
+
+	/**
+	 * Setup window resize handler to update canvas and pet positions
+	 */
+	private setupResizeHandler(): void {
+		const handleResize = () => {
+			// Update canvas dimensions
+			if (this.backgroundCanvas) {
+				this.backgroundCanvas.width = this.contentEl.offsetWidth;
+				this.backgroundCanvas.height = this.contentEl.offsetHeight;
+			}
+			if (this.foregroundCanvas) {
+				this.foregroundCanvas.width = this.contentEl.offsetWidth;
+				this.foregroundCanvas.height = this.contentEl.offsetHeight;
+			}
+
+			// Update container width for all pets
+			this.pets.forEach(pet => {
+				pet.containerWidth = this.contentEl.offsetWidth;
+			});
+
+			// If current effect is active, handle resize
+			if (this.currentEffect) {
+				this.currentEffect.handleResize();
+			}
+
+			// Reapply theme to update background/foreground for new size
+			const plugin = getPlugin(this.app, PLUGIN_ID);
+			if (plugin) {
+				const theme = (plugin as any).settings.theme;
+				if (theme) {
+					this.applyTheme(theme);
+				}
+			}
+		};
+
+		window.addEventListener('resize', handleResize);
+	}
+
+	/**
 	 * Seek new friends for pets that don't have friends yet
 	 * When pets are near each other, they can become friends
 	 */
@@ -661,6 +797,9 @@ export class PetView extends ItemView {
 			if (!this.effectsDisabled && plugin.settings.effect && plugin.settings.effect !== 'none') {
 				this.setEffect(plugin.settings.effect);
 			}
+
+			// Setup resize handler
+			this.setupResizeHandler();
 		}
 
 		this.animationFrameId = window.requestAnimationFrame(this.gameLoop);

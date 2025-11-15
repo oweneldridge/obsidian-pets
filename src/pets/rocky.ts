@@ -76,9 +76,10 @@ export class Rocky extends BasePetType {
 		petSize: PetSize,
 		name: string,
 		floorString: string = '0%',
-		left: number = 100
+		left: number = 100,
+		speed: number = 3
 	) {
-		super(app, PetType.rocky, petColor, petSize, name, floorString, left);
+		super(app, PetType.rocky, petColor, petSize, name, floorString, left, speed);
 		this.initState();
 	}
 }

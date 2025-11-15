@@ -5,6 +5,7 @@ import { ImportPetsModal } from './src/ImportPetsModal';
 import { PetSize, PetType, PetColor } from "./src/types";
 import { DEFAULT_PET_SIZE, DEFAULT_PET_TYPE, DEFAULT_PET_COLOR, DEFAULT_THEME } from './src/constants';
 import { availableColors } from './src/pets-factory';
+import { initializeLocale } from './src/localize';
 
 interface SavedPet {
 	type: string;
@@ -30,7 +31,7 @@ const DEFAULT_SETTINGS: PetPluginSettings = {
 	petSize: DEFAULT_PET_SIZE,
 	theme: DEFAULT_THEME,
 	effect: 'none',
-	throwBallWithMouse: true,
+	throwBallWithMouse: false,
 	disableEffects: false,
 	savedPets: [],
 }
@@ -48,6 +49,9 @@ export default class MyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+
+		// Initialize localization
+		await initializeLocale();
 
 		// This registers our custom view with Obsidian
 		this.registerView(
@@ -182,6 +186,37 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'throw-with-mouse',
+			name: 'Toggle throw ball with mouse',
+			callback: async () => {
+				this.settings.throwBallWithMouse = !this.settings.throwBallWithMouse;
+				await this.saveSettings();
+
+				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+				if (leaf) {
+					const petView = leaf.view as PetView;
+					petView.setThrowWithMouse(this.settings.throwBallWithMouse);
+				}
+
+				new Notice(`Throw ball with mouse: ${this.settings.throwBallWithMouse ? 'enabled' : 'disabled'}`);
+			}
+		});
+
+		this.addCommand({
+			id: 'delete-pet',
+			name: 'Delete a pet',
+			callback: () => {
+				const leaf = this.app.workspace.getLeavesOfType(PET_VIEW_TYPE)[0];
+				if (leaf) {
+					const petView = leaf.view as PetView;
+					petView.openRemovePetModal();
+				} else {
+					new Notice('Please open the Pet View first');
+				}
+			}
+		});
+
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new PetSettingTab(this.app, this));
 	}
@@ -287,6 +322,7 @@ class PetSettingTab extends PluginSettingTab {
 		const availableColorStrings = petAvailableColors.map(c => c.toString());
 		const colorMapping: Record<string, string> = {
 			'brown': 'Brown',
+			'lightbrown': 'Light Brown',
 			'black': 'Black',
 			'red': 'Red',
 			'green': 'Green',

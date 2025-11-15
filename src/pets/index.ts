@@ -4,6 +4,8 @@
 
 // Original 5 pets
 export { Dog, DOG_NAMES } from './dog';
+export { Cat, CAT_NAMES } from './cat';
+export { Bunny, BUNNY_NAMES } from './bunny';
 export { Crab, CRAB_NAMES } from './crab';
 export { Chicken, CHICKEN_NAMES } from './chicken';
 export { Clippy, CLIPPY_NAMES } from './clippy';
@@ -28,6 +30,7 @@ export { Rat, RAT_NAMES } from './rat';
 // Complex pets
 export { Horse, HORSE_NAMES } from './horse';
 export { Skeleton, SKELETON_NAMES } from './skeleton';
+export { Squirrel, SQUIRREL_NAMES } from './squirrel';
 
 // Special pet
 export { Totoro, TOTORO_NAMES } from './totoro';

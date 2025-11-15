@@ -11,6 +11,7 @@ export class Ball {
 	position: { x: number; y: number };
 	private velocity: { x: number; y: number };
 	private readonly createdAt: number;
+	paused: boolean = false; // Flag to indicate if ball has been caught
 
 	constructor(app: App, startX: number, startY: number, petSize: PetSize, velocityX?: number, velocityY?: number) {
 		this.app = app;

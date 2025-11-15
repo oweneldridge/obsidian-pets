@@ -90,9 +90,10 @@ export class Zappy extends BasePetType {
 		petSize: PetSize,
 		name: string,
 		floorString: string = '0%',
-		left: number = 100
+		left: number = 100,
+		speed: number = 3
 	) {
-		super(app, PetType.zappy, petColor, petSize, name, floorString, left);
+		super(app, PetType.zappy, petColor, petSize, name, floorString, left, speed);
 		this.initState();
 	}
 }

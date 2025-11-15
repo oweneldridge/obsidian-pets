@@ -4,7 +4,8 @@ import { App, SuggestModal } from 'obsidian';
 import { PetView } from './PetView';
 import { PetSize } from './types';
 import { PET_COLOR_MAP } from './PetSuggestModal';
-import {NameInputModal} from "./NameInputModal"; // Import the color map
+import {NameInputModal} from "./NameInputModal";
+import { t } from './localize';
 
 export class ColorSuggestModal extends SuggestModal<string> {
 	view: PetView;
@@ -14,7 +15,7 @@ export class ColorSuggestModal extends SuggestModal<string> {
 		super(app);
 		this.view = view;
 		this.petType = petType;
-		this.setPlaceholder(`Choose a color for your ${petType}...`);
+		this.setPlaceholder(t("Choose a color..."));
 	}
 
 	// Returns all the available colors for the selected pet type
@@ -27,7 +28,7 @@ export class ColorSuggestModal extends SuggestModal<string> {
 
 	// Renders each color suggestion
 	renderSuggestion(color: string, el: HTMLElement) {
-		el.createEl("div", { text: color });
+		el.createEl("div", { text: t(color) });
 	}
 
 	// Called when the user clicks a color

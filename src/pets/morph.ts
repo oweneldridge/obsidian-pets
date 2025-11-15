@@ -90,9 +90,10 @@ export class Morph extends BasePetType {
 		petSize: PetSize,
 		name: string,
 		floorString: string = '0%',
-		left: number = 100
+		left: number = 100,
+		speed: number = 3
 	) {
-		super(app, PetType.morph, petColor, petSize, name, floorString, left);
+		super(app, PetType.morph, petColor, petSize, name, floorString, left, speed);
 		this.initState();
 	}
 }

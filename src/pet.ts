@@ -34,6 +34,9 @@ export interface PetInstanceState {
  * its own sequence tree, label, and sprite mappings.
  */
 export abstract class BasePetType implements IPetType {
+	// Static count tracking - incremented for each pet of this type created
+	static count: number = 0;
+
 	// Abstract properties that each pet type must define
 	abstract sequence: ISequenceTree;
 	abstract readonly label: string;
@@ -73,7 +76,8 @@ export abstract class BasePetType implements IPetType {
 		petSize: PetSize,
 		name: string,
 		floorString: string = '0%',
-		left: number = 100
+		left: number = 100,
+		speed: number = 3 // Default to normal speed (PetSpeed.normal)
 	) {
 		this.id = Date.now() + Math.random();
 		this.app = app;
@@ -86,12 +90,22 @@ export abstract class BasePetType implements IPetType {
 		this._bottom = 0; // Will be calculated from container height
 		this._floor = 0; // Will be calculated from container height
 
-		// Set speed based on size
+		// Set base speed from pet type, modified by size
+		let sizeMultiplier: number;
 		switch (this.petSize) {
-			case PetSize.nano: this._speed = 1.0; break;
-			case PetSize.small: this._speed = 1.5; break;
-			case PetSize.large: this._speed = 2.5; break;
-			case PetSize.medium: default: this._speed = 2.0; break;
+			case PetSize.nano: sizeMultiplier = 0.8; break;
+			case PetSize.small: sizeMultiplier = 1.0; break;
+			case PetSize.medium: sizeMultiplier = 1.2; break;
+			case PetSize.large: sizeMultiplier = 1.5; break;
+			default: sizeMultiplier = 1.0; break;
+		}
+		this._speed = this.randomizeSpeed(speed * sizeMultiplier);
+
+		// Debug easter egg: log creation details when pet is named "debug"
+		if (this.name.toLowerCase() === 'debug') {
+			console.log(
+				`Creating pet ${this.name} of type ${this.petType} with size ${this.petSize} at position (${this._left}, ${this._bottom}) with speed ${this._speed}`
+			);
 		}
 
 		// Create sprite element
@@ -111,6 +125,9 @@ export abstract class BasePetType implements IPetType {
 		// Initialize state machine - will be set in initState() after subclass construction
 		this.currentStateEnum = States.sitIdle;
 		this.currentState = resolveState(States.sitIdle, this);
+
+		// Increment the static count of the Pet class that the constructor belongs to
+		(this.constructor as any).count += 1;
 	}
 
 	/**
@@ -156,11 +173,22 @@ export abstract class BasePetType implements IPetType {
 	update(viewWidth: number, viewHeight: number, floorY: number, ball: any | null): string | void {
 		// Handle ball chasing logic BEFORE updating state machine
 		if (ball && this.canChase) {
+			// If ball is already caught by another pet, stop chasing
+			if (ball.paused) {
+				if (this.currentStateEnum === States.chase || this.currentStateEnum === States.idleWithBall) {
+					this.currentStateEnum = States.sitIdle;
+					this.currentState = resolveState(States.sitIdle, this);
+				}
+				return;
+			}
+
 			const ballIsOnFloor = ball.position.y >= floorY - 30;
 			const distanceToBall = Math.abs((this.left + this.width / 2) - ball.position.x);
 
 			// If ball is on floor and close enough, catch it
 			if (ballIsOnFloor && distanceToBall < 40) {
+				// Mark ball as caught so other pets stop chasing
+				ball.paused = true;
 				// Switch to idle with ball state
 				if (this.currentStateEnum !== States.idleWithBall) {
 					this.currentStateEnum = States.idleWithBall;
@@ -177,7 +205,7 @@ export abstract class BasePetType implements IPetType {
 
 			// If in chase state, move toward ball
 			if (this.currentStateEnum === States.chase) {
-				const speed = this._speed * 1.5; // Chase is faster than walking
+				const speed = this._speed; // Chase at normal walking speed (matching vscode-pets)
 				if (ball.position.x < this.left + this.width / 2) {
 					// Ball is to the left
 					this.positionLeft(Math.max(0, this.left - speed));
@@ -302,6 +330,16 @@ export abstract class BasePetType implements IPetType {
 	// Speed properties
 	get speed(): number {
 		return this._speed;
+	}
+
+	/**
+	 * Randomize speed with ±30% variation
+	 */
+	randomizeSpeed(speed: number): number {
+		const min = speed * 0.7;
+		const max = speed * 1.3;
+		const newSpeed = Math.random() * (max - min) + min;
+		return newSpeed;
 	}
 
 	abstract get climbSpeed(): number;

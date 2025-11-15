@@ -1,8 +1,10 @@
 import { App } from "obsidian";
 import { BasePetType } from "./pet";
-import { PetColor, PetSize, PetType } from "./types";
+import { PetColor, PetSize, PetType, PetSpeed } from "./types";
 import {
 	Dog, DOG_NAMES,
+	Cat, CAT_NAMES,
+	Bunny, BUNNY_NAMES,
 	Crab, CRAB_NAMES,
 	Chicken, CHICKEN_NAMES,
 	Clippy, CLIPPY_NAMES,
@@ -21,6 +23,7 @@ import {
 	Rat, RAT_NAMES,
 	Horse, HORSE_NAMES,
 	Skeleton, SKELETON_NAMES,
+	Squirrel, SQUIRREL_NAMES,
 	Totoro, TOTORO_NAMES
 } from "./pets";
 
@@ -35,6 +38,10 @@ export function availableColors(petType: PetType): PetColor[] {
 	switch (petType) {
 		case PetType.dog:
 			return Dog.possibleColors;
+		case PetType.cat:
+			return Cat.possibleColors;
+		case PetType.bunny:
+			return Bunny.possibleColors;
 		case PetType.crab:
 			return Crab.possibleColors;
 		case PetType.chicken:
@@ -71,6 +78,8 @@ export function availableColors(petType: PetType): PetColor[] {
 			return Horse.possibleColors;
 		case PetType.skeleton:
 			return Skeleton.possibleColors;
+		case PetType.squirrel:
+			return Squirrel.possibleColors;
 		case PetType.totoro:
 			return Totoro.possibleColors;
 		default:
@@ -86,6 +95,10 @@ export function availableNames(petType: PetType): ReadonlyArray<string> {
 	switch (petType) {
 		case PetType.dog:
 			return DOG_NAMES;
+		case PetType.cat:
+			return CAT_NAMES;
+		case PetType.bunny:
+			return BUNNY_NAMES;
 		case PetType.crab:
 			return CRAB_NAMES;
 		case PetType.chicken:
@@ -122,6 +135,8 @@ export function availableNames(petType: PetType): ReadonlyArray<string> {
 			return HORSE_NAMES;
 		case PetType.skeleton:
 			return SKELETON_NAMES;
+		case PetType.squirrel:
+			return SQUIRREL_NAMES;
 		case PetType.totoro:
 			return TOTORO_NAMES;
 		default:
@@ -158,45 +173,51 @@ export function createPet(
 
 	switch (petType) {
 		case PetType.dog:
-			return new Dog(app, petColor, petSize, name, floorString, left);
+			return new Dog(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
+		case PetType.cat:
+			return new Cat(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
+		case PetType.bunny:
+			return new Bunny(app, petColor, petSize, name, floorString, left, PetSpeed.veryFast);
 		case PetType.crab:
-			return new Crab(app, petColor, petSize, name, floorString, left);
+			return new Crab(app, petColor, petSize, name, floorString, left, PetSpeed.slow);
 		case PetType.chicken:
-			return new Chicken(app, petColor, petSize, name, floorString, left);
+			return new Chicken(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.clippy:
-			return new Clippy(app, petColor, petSize, name, floorString, left);
+			return new Clippy(app, petColor, petSize, name, floorString, left, PetSpeed.slow);
 		case PetType.fox:
-			return new Fox(app, petColor, petSize, name, floorString, left);
+			return new Fox(app, petColor, petSize, name, floorString, left, PetSpeed.fast);
 		case PetType.snake:
-			return new Snake(app, petColor, petSize, name, floorString, left);
+			return new Snake(app, petColor, petSize, name, floorString, left, PetSpeed.verySlow);
 		case PetType.snail:
-			return new Snail(app, petColor, petSize, name, floorString, left);
+			return new Snail(app, petColor, petSize, name, floorString, left, PetSpeed.verySlow);
 		case PetType.deno:
-			return new Deno(app, petColor, petSize, name, floorString, left);
+			return new Deno(app, petColor, petSize, name, floorString, left, PetSpeed.slow);
 		case PetType.zappy:
-			return new Zappy(app, petColor, petSize, name, floorString, left);
+			return new Zappy(app, petColor, petSize, name, floorString, left, PetSpeed.veryFast);
 		case PetType.morph:
-			return new Morph(app, petColor, petSize, name, floorString, left);
+			return new Morph(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.mod:
-			return new Mod(app, petColor, petSize, name, floorString, left);
+			return new Mod(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.rubberduck:
-			return new RubberDuck(app, petColor, petSize, name, floorString, left);
+			return new RubberDuck(app, petColor, petSize, name, floorString, left, PetSpeed.fast);
 		case PetType.rocky:
-			return new Rocky(app, petColor, petSize, name, floorString, left);
+			return new Rocky(app, petColor, petSize, name, floorString, left, PetSpeed.still);
 		case PetType.turtle:
-			return new Turtle(app, petColor, petSize, name, floorString, left);
+			return new Turtle(app, petColor, petSize, name, floorString, left, PetSpeed.verySlow);
 		case PetType.panda:
-			return new Panda(app, petColor, petSize, name, floorString, left);
+			return new Panda(app, petColor, petSize, name, floorString, left, PetSpeed.slow);
 		case PetType.cockatiel:
-			return new Cockatiel(app, petColor, petSize, name, floorString, left);
+			return new Cockatiel(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.rat:
-			return new Rat(app, petColor, petSize, name, floorString, left);
+			return new Rat(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.horse:
-			return new Horse(app, petColor, petSize, name, floorString, left);
+			return new Horse(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		case PetType.skeleton:
-			return new Skeleton(app, petColor, petSize, name, floorString, left);
+			return new Skeleton(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
+		case PetType.squirrel:
+			return new Squirrel(app, petColor, petSize, name, floorString, left, PetSpeed.veryFast);
 		case PetType.totoro:
-			return new Totoro(app, petColor, petSize, name, floorString, left);
+			return new Totoro(app, petColor, petSize, name, floorString, left, PetSpeed.normal);
 		default:
 			console.error(`Pet type ${petType} not yet implemented`);
 			return null;
@@ -217,6 +238,8 @@ export function getRandomName(petType: PetType): string {
 export function isPetTypeImplemented(petType: PetType): boolean {
 	return [
 		PetType.dog,
+		PetType.cat,
+		PetType.bunny,
 		PetType.crab,
 		PetType.chicken,
 		PetType.clippy,
@@ -235,6 +258,7 @@ export function isPetTypeImplemented(petType: PetType): boolean {
 		PetType.rat,
 		PetType.horse,
 		PetType.skeleton,
+		PetType.squirrel,
 		PetType.totoro,
 	].includes(petType);
 }

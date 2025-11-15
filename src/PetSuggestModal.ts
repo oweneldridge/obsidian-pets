@@ -1,6 +1,7 @@
 import { App, SuggestModal } from 'obsidian';
 import { PetView } from './PetView';
 import { ColorSuggestModal } from './ColorSuggestModal';
+import { t } from './localize';
 
 const PET_TYPES = [
 	'chicken', 'clippy', 'cockatiel', 'crab', 'deno',
@@ -38,7 +39,7 @@ export class PetSuggestModal extends SuggestModal<string> {
 	constructor(app: App, view: PetView) {
 		super(app);
 		this.view = view;
-		this.setPlaceholder("Choose a pet to add...");
+		this.setPlaceholder(t("Choose a pet to add..."));
 	}
 
 	getSuggestions(query: string): string[] {
@@ -48,7 +49,7 @@ export class PetSuggestModal extends SuggestModal<string> {
 	}
 
 	renderSuggestion(pet: string, el: HTMLElement) {
-		el.createEl("div", { text: pet });
+		el.createEl("div", { text: t(pet) });
 	}
 
 	onChooseSuggestion(petType: string, evt: MouseEvent | KeyboardEvent) {

@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from 'obsidian';
 import { PetView } from './PetView';
 import { PetSize } from './types';
+import { t } from './localize';
 
 export class NameInputModal extends Modal {
 	view: PetView;
@@ -17,10 +18,10 @@ export class NameInputModal extends Modal {
 
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.createEl("h2", { text: "Name your new pet!" });
+		contentEl.createEl("h2", { text: t("Name your pet") });
 
 		new Setting(contentEl)
-			.setName("Pet's name")
+			.setName(t("Name your pet"))
 			.addText((text) =>
 				text.onChange((value) => {
 					this.name = value;
@@ -29,7 +30,7 @@ export class NameInputModal extends Modal {
 		new Setting(contentEl)
 			.addButton((btn) =>
 				btn
-					.setButtonText("Create Pet")
+					.setButtonText(t("Spawn Pet"))
 					.setCta()
 					.onClick(async () => {
 						this.close();
