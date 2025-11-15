@@ -114,6 +114,33 @@ All features are accessible via the command palette:
 *   Toggle pause
 *   Reset pets
 
+## Development
+
+### Code Quality
+
+This plugin follows [Obsidian Plugin Review Guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines) and uses ESLint to enforce code quality standards that match ObsidianReviewBot requirements.
+
+**Running lints and tests**:
+```bash
+npm run lint        # Check for linting errors
+npm run build       # Build the plugin (includes type checking)
+```
+
+For detailed information about the ESLint configuration and Obsidian standards, see [ESLINT_OBSIDIAN_STANDARDS.md](ESLINT_OBSIDIAN_STANDARDS.md).
+
+### Building from Source
+
+```bash
+# Install dependencies
+npm install
+
+# Build the plugin
+npm run build
+
+# The build outputs main.js and copies it to your vault
+# (if you've configured the copy path in package.json)
+```
+
 ## Credits
 
 *   This project is a port of the [vscode-pets](https://github.com/tonybaloney/vscode-pets) extension for Visual Studio Code, created by [Anthony Shaw](https://github.com/tonybaloney).
