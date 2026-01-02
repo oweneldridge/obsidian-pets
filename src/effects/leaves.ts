@@ -61,7 +61,7 @@ class Leaf {
         this.rotation = Math.random() * Math.PI * 2;
     }
 
-    update(timeDelta: number): void {
+    updatePosition(timeDelta: number): void {
         if (this.settled) {
             this.settleTime += timeDelta;
             return;
@@ -151,7 +151,7 @@ export class LeafEffect implements Effect {
     loop(): void {
         if (this.running) {
             this.clear();
-            this.update();
+            this.updateParticles();
             this.draw();
             this.queue();
         }
@@ -191,7 +191,7 @@ export class LeafEffect implements Effect {
         }
     }
 
-    private update(): void {
+    private updateParticles(): void {
         if (!this.canvas) {
             console.warn('Canvas not initialized');
             return;
@@ -202,7 +202,7 @@ export class LeafEffect implements Effect {
 
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
-            particle.update(timeDelta);
+            particle.updatePosition(timeDelta);
 
             // check if leaf has reached the floor
             if (

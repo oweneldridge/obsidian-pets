@@ -27,7 +27,7 @@ export class EffectSuggestModal extends SuggestModal<string> {
 		el.createEl('div', { text: effect });
 	}
 
-	async onChooseSuggestion(effect: string, evt: MouseEvent | KeyboardEvent) {
+	onChooseSuggestion(effect: string, evt: MouseEvent | KeyboardEvent): void {
 		// Apply the effect
 		this.view.setEffect(effect);
 
@@ -35,7 +35,7 @@ export class EffectSuggestModal extends SuggestModal<string> {
 		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (plugin) {
 			plugin.settings.effect = effect;
-			await plugin.saveSettings();
+			void plugin.saveSettings();
 		}
 	}
 }

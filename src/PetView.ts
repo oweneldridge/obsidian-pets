@@ -336,7 +336,7 @@ export class PetView extends ItemView {
 	 * @param theme - Theme name (none, castle, forest, beach, winter)
 	 */
 	applyTheme(theme: string) {
-		this.contentEl.style.backgroundImage = '';
+		this.contentEl.setCssProps({ '--pet-view-background-image': '' });
 		this.contentEl.removeClass('pet-view-with-theme');
 
 		// Remove any existing foreground layer
@@ -364,7 +364,7 @@ export class PetView extends ItemView {
 			);
 
 			this.contentEl.addClass('pet-view-with-theme');
-			this.contentEl.style.backgroundImage = `url('${backgroundUrl}')`;
+			this.contentEl.setCssProps({ '--pet-view-background-image': `url('${backgroundUrl}')` });
 
 			// Add theme-aware foreground layer for depth
 			const foregroundUrl = this.app.vault.adapter.getResourcePath(
@@ -374,7 +374,7 @@ export class PetView extends ItemView {
 			const foregroundLayer = this.contentEl.createDiv({
 				cls: 'pet-view-foreground-layer'
 			});
-			foregroundLayer.style.backgroundImage = `url('${foregroundUrl}')`;
+			foregroundLayer.setCssProps({ '--pet-view-foreground-image': `url('${foregroundUrl}')` });
 		}
 
 		// Update the floor position for all existing pets without recreating them

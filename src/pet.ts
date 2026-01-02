@@ -276,14 +276,14 @@ export abstract class BasePetType implements IPetType {
 	 * Face the pet left (flip sprite horizontally)
 	 */
 	private faceLeft(): void {
-		this.el.style.transform = 'scaleX(-1)';
+		this.el.addClass('pet-facing-left');
 	}
 
 	/**
 	 * Face the pet right (normal sprite orientation)
 	 */
 	private faceRight(): void {
-		this.el.style.transform = 'scaleX(1)';
+		this.el.removeClass('pet-facing-left');
 	}
 
 	/**
