@@ -27,7 +27,7 @@ export class ThemeSuggestModal extends SuggestModal<string> {
 		el.createEl('div', { text: theme });
 	}
 
-	async onChooseSuggestion(theme: string, evt: MouseEvent | KeyboardEvent) {
+	onChooseSuggestion(theme: string, evt: MouseEvent | KeyboardEvent): void {
 		// Apply the theme
 		this.view.applyTheme(theme);
 
@@ -35,7 +35,7 @@ export class ThemeSuggestModal extends SuggestModal<string> {
 		const plugin = getPlugin<VaultPetsPlugin>(this.app, PLUGIN_ID);
 		if (plugin) {
 			plugin.settings.theme = theme;
-			await plugin.saveSettings();
+			void plugin.saveSettings();
 		}
 	}
 }

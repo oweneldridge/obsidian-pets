@@ -47,7 +47,7 @@ class Particle {
         this.dx = Math.random() * 100;
     }
 
-    update(timeDelta: number): void {
+    updatePosition(timeDelta: number): void {
         this.position.y += this.velocity.y * timeDelta;
 
         // oscillate the x value between -amplitude and +amplitude
@@ -123,7 +123,7 @@ export class SnowEffect implements Effect {
     loop(): void {
         if (this.running) {
             this.clear();
-            this.update();
+            this.updateParticles();
             this.draw();
             this.queue();
         }
@@ -155,7 +155,7 @@ export class SnowEffect implements Effect {
         }
     }
 
-    private update(): void {
+    private updateParticles(): void {
         if (!this.canvas) {
             console.warn('Canvas not initialized');
             return;
@@ -167,7 +167,7 @@ export class SnowEffect implements Effect {
 
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
-            particle.update(timeDelta);
+            particle.updatePosition(timeDelta);
 
             if (
                 particle.position.y - particle.size >

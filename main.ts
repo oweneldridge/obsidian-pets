@@ -278,7 +278,7 @@ class PetSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Obsidian Pets Settings')
+			.setName('Obsidian pets')
 			.setHeading();
 
 		new Setting(containerEl)
@@ -325,7 +325,7 @@ class PetSettingTab extends PluginSettingTab {
 		const availableColorStrings = petAvailableColors.map(c => c.toString());
 		const colorMapping: Record<string, string> = {
 			'brown': 'Brown',
-			'lightbrown': 'Light Brown',
+			'lightbrown': 'Light brown',
 			'black': 'Black',
 			'red': 'Red',
 			'green': 'Green',
@@ -337,12 +337,12 @@ class PetSettingTab extends PluginSettingTab {
 			'blue': 'Blue',
 			'purple': 'Purple',
 			'akita': 'Akita',
-			'socksblack': 'Socks Black',
-			'socksbeige': 'Socks Beige',
-			'socksbrown': 'Socks Brown',
-			'paintbeige': 'Paint Beige',
-			'paintblack': 'Paint Black',
-			'paintbrown': 'Paint Brown',
+			'socksblack': 'Socks black',
+			'socksbeige': 'Socks beige',
+			'socksbrown': 'Socks brown',
+			'paintbeige': 'Paint beige',
+			'paintblack': 'Paint black',
+			'paintbrown': 'Paint brown',
 			'magical': 'Magical',
 			'warrior': 'Warrior'
 		};

@@ -118,3 +118,17 @@
 .pet-ball-hidden {
 	display: none;
 }
+
+/* Pet facing direction */
+.pet-facing-left {
+	transform: scaleX(-1);
+}
+
+/* Theme background using CSS custom properties */
+.pet-view-content {
+	background-image: var(--pet-view-background-image);
+}
+
+.pet-view-foreground-layer {
+	background-image: var(--pet-view-foreground-image);
+}
