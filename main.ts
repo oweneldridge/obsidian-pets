@@ -212,7 +212,7 @@ export default class VaultPetsPlugin extends Plugin {
 					const petView = leaf.view as PetView;
 					petView.openRemovePetModal();
 				} else {
-					new Notice('Please open the Pet View first');
+					new Notice('Please open the pet view first');
 				}
 			}
 		});
@@ -298,7 +298,7 @@ class PetSettingTab extends PluginSettingTab {
 				.addOption('panda', 'Panda')
 				.addOption('rat', 'Rat')
 				.addOption('rocky', 'Rocky')
-				.addOption('rubber-duck', 'Rubber Duck')
+				.addOption('rubber-duck', 'Rubber duck')
 				.addOption('skeleton', 'Skeleton')
 				.addOption('snail', 'Snail')
 				.addOption('snake', 'Snake')

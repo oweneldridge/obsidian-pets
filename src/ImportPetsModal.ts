@@ -18,7 +18,7 @@ export class ImportPetsModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 
-		contentEl.createEl("h2", { text: "Import Pet List" });
+		contentEl.createEl("h2", { text: "Import pet list" });
 		contentEl.createEl("p", { text: "Select a JSON file containing pet data to import." });
 
 		// List JSON files in the vault

@@ -168,11 +168,10 @@ export abstract class BasePetType implements IPetType {
 	}
 
 	/**
-	 * Legacy update method for backward compatibility with old animation loop.
-	 * New code should call nextFrame() instead.
-	 * @deprecated Use nextFrame() instead
+	 * Main update tick for pet animation and behavior.
+	 * Handles ball chasing logic and state machine updates.
 	 */
-	update(viewWidth: number, viewHeight: number, floorY: number, ball: Ball | null): string | void {
+	tick(viewWidth: number, viewHeight: number, floorY: number, ball: Ball | null): string | void {
 		// Handle ball chasing logic BEFORE updating state machine
 		if (ball && this.canChase) {
 			// If ball is already caught by another pet, stop chasing
