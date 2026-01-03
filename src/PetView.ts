@@ -38,7 +38,7 @@ export class PetView extends ItemView {
 	}
 
 	getViewType() { return PET_VIEW_TYPE; }
-	getDisplayText() { return "Pet View"; }
+	getDisplayText() { return "Pet view"; }
 	getIcon() { return "dog"; }
 
 	private gameLoop = () => {
@@ -68,15 +68,15 @@ export class PetView extends ItemView {
 				// If there are balls, check if pet should chase them
 				if (this.balls.length > 0) {
 					for (const ball of this.balls) {
-						const event = pet.update(viewWidth, viewHeight, floorY, ball);
+						const event = pet.tick(viewWidth, viewHeight, floorY, ball);
 						if (event === 'caught_ball') {
 							ballsToRemove.push(ball);
 							break; // Pet caught a ball, stop checking other balls for this pet
 						}
 					}
 				} else {
-					// No balls present, update pet with null to allow normal walking behavior
-					pet.update(viewWidth, viewHeight, floorY, null);
+					// No balls present, tick pet with null to allow normal walking behavior
+					pet.tick(viewWidth, viewHeight, floorY, null);
 				}
 			});
 
